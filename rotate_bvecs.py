@@ -1,1 +1,0 @@
-/users/cais/STUT/scripts/rotate_bvecs.py
