@@ -79,24 +79,15 @@ allROIs = get_aparc12_cort_rois(lobe="all", bSpeech=False)
 
 # ==== ~CONFIG: Construct the parcellation profile ==== #
 
-if __name__ == "__main__":
-    ap = argparse.ArgumentParser(description="Parcellation of the subcortical ROIs based on probabilistic tractograpy\nAuthor: Shanqing Cai (shanqing.cai@gmail.com) \nDate: 2013-02-27")
-    ap.add_argument("sID", help="Subject ID")
-    ap.add_argument("seedROI", help="seedROI")
-    ap.add_argument("step", help="Step {track, stats, seg}")
-    ap.add_argument("--ccStop", dest="b_ccStop", action="store_true", \
-                        help="Use corpus callosum (CC) as a stop mask")
-    
-    if len(sys.argv) == 1:
-        ap.print_help()
-        sys.exit(0)
 
+# ==== sub_routine ==== #
+def tract_seg_sub(args, step):
     # Check input arguments
-    args = ap.parse_args()
     sID = args.sID
     seedROI = args.seedROI
-    step = args.step
     b_ccStop = args.b_ccStop
+
+    print(step)
 
     if ALL_STEPS.count(step) == 0:
         raise Exception, "Unrecognized step: %s" % step
@@ -233,8 +224,6 @@ if __name__ == "__main__":
         for (i0, cmd) in enumerate(probtrackxCmds):
             saydo(cmd)
             check_file(expectFNs[i0])
-
-        sys.exit(0)
     elif step == "stats":
         # === Load the maskROIs === #
         maskROIs_fn = glob.glob(os.path.join(ROI_MASK_BASE, sID, \
@@ -286,17 +275,29 @@ if __name__ == "__main__":
                 t_txt = ''
                 for i0 in range(len(maskedVals)):
                     t_mask = maskROIs_fn[i0]
-                    (stdout, stderr) = Popen(['fslstats', fdtPathsFN, \
+
+                    #(stdout, stderr) = Popen(['fslstats', t_mask, '-V'], \
+                    #                         stdout=PIPE, stderr=PIPE)\
+                    #                  .communicate()
+                    #maskNVox = int(stdout.split(" ")[0])                    
+
+                    if roiNVoxes[i0] == 0:
+                        maskedVals[i0] = 0.0;
+                        print("WARNING: ROI mask %s is empty." % t_mask)
+                    else:                        
+                        (stdout, stderr) = Popen(['fslstats', fdtPathsFN, \
                                               '-k', t_mask, \
                                               '-m'], stdout=PIPE, stderr=PIPE)\
                                               .communicate()
 
-                    if len(stderr) > 0:
-                        raise Exception, "fslstats reported ERROR during processing of coordinate (%d, %d, %d) and cortical ROI %s" \
-                            % (coord[0], coord[1], coord[2], t_mask)
-        
-                    maskedVals[i0] = float(stdout.split(' ')[0])
-            
+                        if len(stderr) > 0:
+                            raise Exception, "fslstats reported ERROR during processing of coordinate (%d, %d, %d) and cortical ROI %s: \n%s" \
+                               % (coord[0], coord[1], coord[2], t_mask, stderr)
+
+                        maskedVals[i0] = float(stdout.split(' ')[0])
+                        
+                    #print("roiNVoxes = %d; maskNVox = %d" \
+                    #      % (roiNVoxes[i0], maskNVox)) # DEBUG
                     t_txt += '%s %f %f\n' \
                          % (maskROIs[i0], roiNVoxes[i0], maskedVals[i0])        
 
@@ -316,7 +317,6 @@ if __name__ == "__main__":
                 max_roi_f.close()
                 print('Wrote max ROI to %s\n'%max_roi_fn)
 
-        sys.exit(0)
     elif step == "seg":
         #sys.exit(0)
         add_cmd = 'fslmaths '
@@ -445,5 +445,29 @@ if __name__ == "__main__":
         #      % tract_seg_fn)
         print("\nINFO: lobe-by-lobe segmentation file saved at\n\t%s" \
               % tract_region_seg_fn)
+    
+    
+    return
+# ==== ~sub_routine ==== #
 
 
+if __name__ == "__main__":
+    ap = argparse.ArgumentParser(description="Parcellation of the subcortical ROIs based on probabilistic tractograpy\nAuthor: Shanqing Cai (shanqing.cai@gmail.com) \nDate: 2013-02-27")
+    ap.add_argument("sID", help="Subject ID")
+    ap.add_argument("seedROI", help="seedROI")
+    ap.add_argument("step", help="Step {track, stats, seg, or all}")
+    ap.add_argument("--ccStop", dest="b_ccStop", action="store_true", \
+                        help="Use corpus callosum (CC) as a stop mask")
+    
+    if len(sys.argv) == 1:
+        ap.print_help()
+        sys.exit(0)
+
+    args = ap.parse_args()
+    
+    step = args.step
+    if step == "all":
+        for (i0, t_step) in enumerate(ALL_STEPS):
+            tract_seg_sub(args, t_step)
+    else:
+        tract_seg_sub(args, step)
