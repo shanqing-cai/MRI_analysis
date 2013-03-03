@@ -51,7 +51,7 @@ ROI_MASK_BASE = "/users/cais/STUT/analysis/aparc12_tracts_2"
 CORTICAL_CTAB = "/users/cais/STUT/slFRS17.ctab"
 SUBCORTICAL_CTAB = "/software/atlas/ASAP_subcortical_labels.txt"
 
-ALL_STEPS = ["track", "stats", "seg"]
+ALL_STEPS = ["track", "stats", "seg", "zip"]
 
 # ==== CONFIG: Construct the parcellation profile ==== #
 leaveOutROIs = ['pINS', 'aINS', 'LG']
@@ -86,8 +86,6 @@ def tract_seg_sub(args, step):
     sID = args.sID
     seedROI = args.seedROI
     b_ccStop = args.b_ccStop
-
-    print(step)
 
     if ALL_STEPS.count(step) == 0:
         raise Exception, "Unrecognized step: %s" % step
@@ -445,7 +443,38 @@ def tract_seg_sub(args, step):
         #      % tract_seg_fn)
         print("\nINFO: lobe-by-lobe segmentation file saved at\n\t%s" \
               % tract_region_seg_fn)
-    
+    elif step == "zip":
+        tract_region_seg_fn = os.path.join(roiDir, 'tract_regionParc.nii.gz')
+        
+        check_file(tract_region_seg_fn)
+        dvds0 = glob.glob(os.path.join(roiDir, "??_??_??"))
+        dvds = []
+        for t_dvd in dvds0:
+            if os.path.isdir(t_dvd):
+                dvds.append(t_dvd)
+
+        tarOut = os.path.join(roiDir, "intermediate.tar.gz")        
+        if len(dvds) == 0:
+            if os.path.isfile(tarOut):
+                print("It appears that the zip step has already been performed")
+                return
+            else:
+                raise Exception, "Unexpected content in directory: %s" % roiDir
+        
+        print("INFO: Found %d directories to zip" % (len(dvds) + 1))
+        
+        cwd = os.getcwd()
+        os.chdir(roiDir)
+        tarCmd = "tar czvf %s %s " % (tarOut, "vox")
+        for dvd in dvds:
+            (foo, dn) = os.path.split(dvd)
+            tarCmd += "%s " % dn
+        saydo(tarCmd)
+
+        rmCmd = tarCmd.replace("tar czvf %s" % tarOut, "rm -rf")
+        saydo(rmCmd)
+
+        os.chdir(cwd)
     
     return
 # ==== ~sub_routine ==== #
@@ -455,7 +484,7 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser(description="Parcellation of the subcortical ROIs based on probabilistic tractograpy\nAuthor: Shanqing Cai (shanqing.cai@gmail.com) \nDate: 2013-02-27")
     ap.add_argument("sID", help="Subject ID")
     ap.add_argument("seedROI", help="seedROI")
-    ap.add_argument("step", help="Step {track, stats, seg, or all}")
+    ap.add_argument("step", help="Step {track, stats, seg, zip or all {all=tract+stats+seg+zip}}")
     ap.add_argument("--ccStop", dest="b_ccStop", action="store_true", \
                         help="Use corpus callosum (CC) as a stop mask")
     
@@ -466,6 +495,8 @@ if __name__ == "__main__":
     args = ap.parse_args()
     
     step = args.step
+
+    print("INFO: step = %s" % step)
     if step == "all":
         for (i0, t_step) in enumerate(ALL_STEPS):
             tract_seg_sub(args, t_step)
