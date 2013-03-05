@@ -5,6 +5,6 @@ rm -fv ./*.o???????
 rm -fv ./*~
 rm -fv ./surfer.log
 rm -fv ./error.log
-rm -fv mris_preproc.*.log
+rm -fv mris_preproc.*.log*
 rm -fv matlab_crash_dump.*
 rm -fv crash-*.npz
