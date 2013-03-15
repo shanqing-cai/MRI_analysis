@@ -1,5 +1,5 @@
 function imOut = fill_aparc12_roi_fig(imIn, imDiv, imText, hemi, fillROIs, varargin)
-bDEBUG = ~isempty(fsic(varargin, 'DEBUG'))
+bDEBUG = ~isempty(fsic(varargin, 'DEBUG'));
 
 imOut = imIn;
 
@@ -20,16 +20,24 @@ if ~isequal(size(imIn), size(imDiv)) || ~isequal(size(imIn), size(imText))
     error('Size mismatch between the three input images');
 end
 
-imRegions = nan(size(imDiv, 1), size(imDiv, 2), numel(fillROIs));
+imRegions = zeros(size(imDiv, 1), size(imDiv, 2), numel(fillROIs));
 coords = [];
 for i1 = 1 : numel(fillROIs)
-    
-    roiCoord = get_aparc12_roi_fig_coords(sprintf('%s.%s', hemi, fillROIs{i1}), 1);
-    t_imRegions = nan(size(imDiv, 1), size(imDiv, 2), length(roiCoord));
+    roiName = sprintf('%s.%s', hemi, fillROIs{i1});
+    roiCoord = get_aparc12_roi_fig_coords(roiName, 1);
+    t_imRegions = zeros(size(imDiv, 1), size(imDiv, 2), length(roiCoord));
     
     for i2 = 1 : length(roiCoord)
-        t_imRegions(:, :, i2) = regiongrowing(imDiv, roiCoord{i2}(2), roiCoord{i2}(1));
-        coords = [coords; [roiCoord{i2}(2), roiCoord{i2}(1)]];
+        if ~iscell(roiCoord)
+            pause(0);
+        end
+        if iscell(roiCoord) && ~isempty(roiCoord)
+            t_imRegions(:, :, i2) = regiongrowing(imDiv, roiCoord{i2}(2), roiCoord{i2}(1));
+            coords = [coords; [roiCoord{i2}(2), roiCoord{i2}(1)]];
+        else
+            fprintf(2, 'WARNING: Skipping ROI %s, due to missing ROI coordinates.\n', ...
+                    roiName)
+        end
     end
     imRegions(:, :, i1) = sum(t_imRegions, 3);
 end
