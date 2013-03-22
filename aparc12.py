@@ -88,8 +88,16 @@ nSpeechROIs = len(np.nonzero(isSpeech == 'S')[0])
 if DEBUG:
     print("nSpeechROIs = %d" % nSpeechROIs) # DEBUG
 
+activROI_uc_fn = "/users/cais/STUT/scripts/activROIs_uc.mat"
+
+from scai_utils import *
+from scipy.io import loadmat
 
 def get_aparc12_cort_rois(lobe="all", bSpeech=False):
+#if __name__ == "__main__":
+#    lobe = "all"
+#    bSpeech = "speech_2g_rh"
+
     if lobe == "all":
         idxLobe = np.array(range(nROIs))
     else:
@@ -100,43 +108,57 @@ def get_aparc12_cort_rois(lobe="all", bSpeech=False):
             idxLobe = np.nonzero(lobeNames == lobe)[0]
             # ROIs = roiNames[idx]
 
-    if bSpeech:
+    if bSpeech == True:
         idxSpeech = np.nonzero(isSpeech == "S")[0]
-    else:
+    elif bSpeech == False:
         idxSpeech = np.array(range(nROIs))
+    elif bSpeech == "speech_PFS_lh" \
+            or bSpeech == "speech_PFS_rh" \
+            or bSpeech == "speech_PWS_lh" \
+            or bSpeech == "speech_PWS_rh" \
+            or bSpeech == "speech_2g_lh" \
+            or bSpeech == "speech_2g_rh":
+        
+        check_file(activROI_uc_fn)
 
+        roiSet = loadmat(activROI_uc_fn)
+        roiSet = roiSet['roiSet']
+
+        t_grp = bSpeech.split('_')[1]
+        t_hemi = bSpeech.split('_')[2]
+
+        # print(t_grp)
+        # print(t_hemi)
+
+        hemis = ['lh', 'rh']
+        hemii = hemis.index(t_hemi)
+        if t_grp == "PFS" or t_grp == "PWS":
+            rois = roiSet[t_grp][0][0][0][0][hemii][0]
+        else:
+            rois_PFS = roiSet["PFS"][0][0][0][0][hemii][0]
+            rois_PWS = roiSet["PWS"][0][0][0][0][hemii][0]
+            rois = np.union1d(rois_PFS, rois_PWS)
+
+        rois = list(rois)
+        for (i0, t_roi) in enumerate(rois):
+            t_roi = str(t_roi)[3 : -2]
+            rois[i0] = t_roi
+
+        a_rois = list(aROIs[:, 0])
+        idxSpeech = []
+        for (i0, t_roi) in enumerate(a_rois):
+            if rois.count(t_roi) == 1:
+                idxSpeech.append(i0)
+
+    else:
+        raise Exception, "Unrecognized mode: %s" % bSpeech
+                
     idx = np.intersect1d(idxLobe, idxSpeech)
     
     if DEBUG:
         print(idxLobe)
         print(idxSpeech)
         print(idx)
-    ROIs = roiNames[idx]
+    ROIs = list(roiNames[idx])
 
     return ROIs
-
-#    if bSpeech:
-    """
-    ROIs = ['H', 'PO', 'PP', 'PT', 'SMA', \
-                'aCG', 'aCO', 'aFO', 'aINS', 'aSMg', \
-                'dIFo', 'dMC', 'dSC', 'midMC', 'midPMC', \
-                'pCO', 'pFO', 'pIFs', 'pINS', 'pSTg', \
-                'pdPMC', 'pdSTs', 'preSMA', 'vIFo', 'vMC', \
-                'vPMC', 'vSC']
-    """
-#    else:
-        
-        
-
-    """
-    ROIs = ['adPMC', 'pMFg', 'pIFs', 'dIFt', 'dIFo', 'vIFo', 'vIFt', 'pFO', 'aINS', 'mdPMC', \
-        'pdPMC', 'midPMC', 'vPMC', 'aCO', 'pINS', 'dMC', 'midMC', 'vMC', \
-        'pCO', 'dSC', 'vSC', 'aSMg', 'PO', \
-        'TP', 'PP', 'H', 'PT', 'pSTg', 'pdSTs', 'adSTs', 'pvSTs', 'avSTs', \
-        'aMTg', 'pMTg', \
-        'SMA', 'preSMA', 'aCG', \
-        'FP', 'aMFg', 'aIFs', 'SFg', 'aFO', 'FOC', 'SPL', 'pSMg', \
-        'AG', 'OC', 'MTO', 'ITO', 'pITg', 'PCN', 'LG', 'pPH', \
-        'aPH', 'midCG', 'pCG', 'SCC', 'FMC']
-    """
-
