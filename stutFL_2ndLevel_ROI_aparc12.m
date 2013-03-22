@@ -269,8 +269,37 @@ for i1 = 1 : numel(groups) + 1
     end
 end
 
-%% Draw ROI figures
+%% Write ROI sets to .mat file:
+roiSet = struct;
+dsFN = '/users/cais/STUT/scripts/activROIs_uc.mat';
 hemis = {'lh', 'rh'};
+
+for i1 = 1 : numel(groups)
+    grp = groups{i1};
+    
+    
+    roiSet.(grp) = struct;
+    for i2 = 1 : numel(hemis)
+        hemi = hemis{i2};
+        
+        roiSet.(grp).(hemi) = {};
+        
+        for i3 = 1 : numel(activROIs_uc.(grp))
+            if isequal(activROIs_uc.(grp){i3}(1 : 2), hemi)
+                roiSet.(grp).(hemi){end + 1} = activROIs_uc.(grp){i3}(4 : end);                
+            end
+        end
+    end
+end
+
+save(dsFN, 'roiSet');
+if isfile(dsFN)
+    fprintf(1, 'INFO: Saved ROI set to file %s\n', dsFN);
+else
+    error('Failed to write ROI set to file %s\n', dsFN);
+end
+
+%% Draw ROI figures
 for i1 = 1 : numel(hemis)
     hemi = hemis{i1};
     
