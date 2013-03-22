@@ -19,12 +19,18 @@ TRACTS_RES_DIR_PT2 = "/users/cais/STUT/analysis/aparc12_tracts_pt2"
 CTAB_FN_CORTICAL = '/users/cais/STUT/slFRS17.ctab'
 CTAB_FN_SUBCORTICAL = '/software/atlas/ASAP_subcortical_labels.txt'
 
+VALID_SPEECH_MODES = ['', 'speech', 'speech_PFS_lh', 'speech_PFS_rh', \
+                      'speech_PWS_lh', 'speech_PWS_rh', \
+                      'speech_2g_lh', 'speech_2g_rh']
+
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description="Generate single-hemisphere cortical WM connectivity matrix based on the aparc12_probtrackx results")
     ap.add_argument("sID", help="Subject ID")
     ap.add_argument("hemi", help="hemisphere {lh, rh}")
     ap.add_argument("--speech", dest="bSpeech", action="store_true", \
                     help="Use the speech (sub-)network")
+    ap.add_argument("--speechMode", type=str, default="", \
+                    help="Speech network type (e.g., speech_PFS_lh)")
     ap.add_argument("--pt2", dest="bpt2", action="store_true", \
                     help="Use probtrackx2 results")
 
@@ -38,6 +44,15 @@ if __name__ == "__main__":
     hemi = args.hemi
     bpt2 = args.bpt2
     bSpeech = args.bSpeech
+    speechMode = args.speechMode
+
+    if bSpeech and len(speechMode) > 0:
+        raise Exception, "Options --speech and --speechMode cannot be used together"
+    if bSpeech:
+        speechMode = "speech"
+        
+    if VALID_SPEECH_MODES.count(speechMode) == 0:
+        raise Exception, "Unrecognized speechMode: %s" % speechMode
 
     if bpt2:
         TRACTS_RES_DIR = TRACTS_RES_DIR_PT2
@@ -46,8 +61,16 @@ if __name__ == "__main__":
     if not (hemi == "lh" or hemi == "rh"):
         raise Exception, "Unrecognized hemisphere: %s" % hemi
 
+    if len(speechMode) > 5:
+        if hemi != speechMode[-2 :]:
+            raise Exception, "Mismatch between hemi=%s and speechMode=%s" \
+                             % (hemi, speechMode)
+
     # Read cortical ROI list
-    t_rois = get_aparc12_cort_rois(bSpeech=bSpeech)
+    if speechMode == "speech":
+        t_rois = get_aparc12_cort_rois("all", bSpeech=True)
+    else:
+        t_rois = get_aparc12_cort_rois("all", bSpeech=speechMode)
     t_rois.sort()
     h_rois = []
     for t_roi in t_rois:
@@ -138,8 +161,9 @@ if __name__ == "__main__":
     resMatFN = os.path.join(sResDir, "connmats.%s.mat" % hemi)    
     if bpt2:
         resMatFN = resMatFN.replace("connmats.", "connmats.pt2.")    
-    if bSpeech:
-        resMatFN = resMatFN.replace("connmats.", "connmats.speech.")
+    if speechMode != "":
+        resMatFN = resMatFN.replace("connmats.", "connmats.%s." % speechMode)
+
 
     savemat(resMatFN, \
             {"h_rois": h_rois, \
