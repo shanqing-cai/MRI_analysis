@@ -88,7 +88,7 @@ nSpeechROIs = len(np.nonzero(isSpeech == 'S')[0])
 if DEBUG:
     print("nSpeechROIs = %d" % nSpeechROIs) # DEBUG
 
-activROI_uc_fn = "/users/cais/STUT/scripts/activROIs_uc.mat"
+activROI_uc_fn_wc = "/users/cais/STUT/scripts/activROIs_uc_thr%.3f.mat"
 
 from scai_utils import *
 from scipy.io import loadmat
@@ -96,7 +96,7 @@ from scipy.io import loadmat
 def get_aparc12_cort_rois(lobe="all", bSpeech=False):
 #if __name__ == "__main__":
 #    lobe = "all"
-#    bSpeech = "speech_2g_rh"
+#    bSpeech = "speech_2g_lh_0.01"
 
     if lobe == "all":
         idxLobe = np.array(range(nROIs))
@@ -112,21 +112,26 @@ def get_aparc12_cort_rois(lobe="all", bSpeech=False):
         idxSpeech = np.nonzero(isSpeech == "S")[0]
     elif bSpeech == False:
         idxSpeech = np.array(range(nROIs))
-    elif bSpeech == "speech_PFS_lh" \
-            or bSpeech == "speech_PFS_rh" \
-            or bSpeech == "speech_PWS_lh" \
-            or bSpeech == "speech_PWS_rh" \
-            or bSpeech == "speech_2g_lh" \
-            or bSpeech == "speech_2g_rh":
+    elif bSpeech.startswith("speech_PFS_lh") \
+            or bSpeech.startswith("speech_PFS_rh") \
+            or bSpeech.startswith("speech_PWS_lh") \
+            or bSpeech.startswith("speech_PWS_rh") \
+            or bSpeech.startswith("speech_2g_lh") \
+            or bSpeech.startswith("speech_2g_rh"):
         
+        if bSpeech.count('_') != 3:
+            raise Exception, "Number of underlines does not equal 3"
+
+        t_grp = bSpeech.split('_')[1]
+        t_hemi = bSpeech.split('_')[2]
+        t_thr = float(bSpeech.split('_')[3])
+
+        activROI_uc_fn = activROI_uc_fn_wc % t_thr
         check_file(activROI_uc_fn)
 
         roiSet = loadmat(activROI_uc_fn)
         roiSet = roiSet['roiSet']
-
-        t_grp = bSpeech.split('_')[1]
-        t_hemi = bSpeech.split('_')[2]
-
+        
         # print(t_grp)
         # print(t_hemi)
 

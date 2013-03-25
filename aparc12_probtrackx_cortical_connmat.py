@@ -51,7 +51,16 @@ if __name__ == "__main__":
     if bSpeech:
         speechMode = "speech"
         
-    if VALID_SPEECH_MODES.count(speechMode) == 0:
+    if len(speechMode) > 0.05:
+        if speechMode.count("_") !=3:
+            raise Exception, \
+                "Cannot find exactly 3 underlines in speechMode: %s" \
+                % speechMode
+        
+    sm0 = speechMode.split("_")
+    speechMode_noThr = "%s_%s_%s" % (sm0[0], sm0[1], sm0[2])
+
+    if VALID_SPEECH_MODES.count(speechMode_noThr) == 0:
         raise Exception, "Unrecognized speechMode: %s" % speechMode
 
     if bpt2:
@@ -62,7 +71,7 @@ if __name__ == "__main__":
         raise Exception, "Unrecognized hemisphere: %s" % hemi
 
     if len(speechMode) > 5:
-        if hemi != speechMode[-2 :]:
+        if hemi != speechMode_noThr[-2 :]:
             raise Exception, "Mismatch between hemi=%s and speechMode=%s" \
                              % (hemi, speechMode)
 
@@ -163,7 +172,6 @@ if __name__ == "__main__":
         resMatFN = resMatFN.replace("connmats.", "connmats.pt2.")    
     if speechMode != "":
         resMatFN = resMatFN.replace("connmats.", "connmats.%s." % speechMode)
-
 
     savemat(resMatFN, \
             {"h_rois": h_rois, \
