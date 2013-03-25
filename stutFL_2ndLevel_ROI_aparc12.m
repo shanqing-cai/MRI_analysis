@@ -1,4 +1,4 @@
-function stutFL_2ndLevel_ROI_aparc12(mode_2l, bRandPerm)
+function stutFL_2ndLevel_ROI_aparc12(mode_2l, p_thresh_2L_uc, bRandPerm)
 %% Subject IDs
 sIDs_all = {'S03', 'S06', 'S08', 'S09', 'S12', 'S13', 'S14', 'S15', 'S16', 'S17', ...
             'S18', 'S19', 'S20', 'S21', 'S22', 'S23', 'S25', 'S26'  'S27', ...
@@ -6,7 +6,7 @@ sIDs_all = {'S03', 'S06', 'S08', 'S09', 'S12', 'S13', 'S14', 'S15', 'S16', 'S17'
             'S38', 'S39'}; % S24 removed
         
 %% Config: 2nd-level significance 
-p_thresh_2L_uc = 0.05; % uncorrected
+% p_thresh_2L_uc = 0.05; % uncorrected
 FDR_q_thresh_2L = 0.05; % FDR
 FWE_p_thresh_2L = 0.05; % FWE (rand perm)
 
@@ -271,7 +271,7 @@ end
 
 %% Write ROI sets to .mat file:
 roiSet = struct;
-dsFN = '/users/cais/STUT/scripts/activROIs_uc.mat';
+dsFN = sprintf('/users/cais/STUT/scripts/activROIs_uc_thr%.3f.mat', p_thresh_2L_uc);
 hemis = {'lh', 'rh'};
 
 for i1 = 1 : numel(groups)
@@ -341,7 +341,8 @@ for i1 = 1 : numel(groups)
                                         vhemi, fillROIs.(hemi));    
 
         figFN = fullfile(baseFigDir, ...
-                         sprintf('SpeechNetwork_stutFL_%s_%s.tif', grp, hemi));
+                         sprintf('SpeechNetwork_stutFL_%s_%s_thr%.3f.tif', ...
+                                 grp, hemi, p_thresh_2L_uc));
 
         hf(end + 1) = figure('Color', 'w', 'Name', ...
             sprintf('Speech network: %s, %s (n=%d)', grp, hemi, numel(fillROIs.(hemi))));
@@ -353,9 +354,9 @@ for i1 = 1 : numel(groups)
     end
 end
 
-
 %% Save to data set
-dsfn = fullfile('/users/cais/STUT/scripts', [mfilename, '_ds.mat']);
+dsfn = fullfile('/users/cais/STUT/scripts', ...
+                [mfilename, sprintf('_thr%.3f_ds.mat', p_thresh_2L_uc)]);
 save(dsfn, 'activROIs_uc', 'activROIs_fdr', 'activROIs_fwe', ...
             'pVals_2L_uc', 'FDR_qVals_2L', 'FWE_pVals_2L', ...
             'nSig_2L_uc', 'nSig_2L_fdr', ...
