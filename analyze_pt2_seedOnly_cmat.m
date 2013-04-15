@@ -40,7 +40,7 @@ VALID_NETW_NAMES = {'speech', 'speech_PFS_lh', 'speec_PFS_rh', ...
                     'speech_PFS_lh', 'speech_PWS_rh', ...
                     'speech_2g_lh', 'speech_2g_rh'};
 
-if length(netwName) > 5
+if length(netwName) > 6
     idxus = strfind(netwName, '_');
     if length(idxus) ~= 3
         error('Cannot find exactly three underlines in netwName: %s', netwName);
@@ -127,6 +127,49 @@ if bReload
     save(dsFN, 'a_cmat');
 else
     load(dsFN);
+end
+
+if bRSFC
+    show_grp = 'PWS';
+    show_sidx = 2;
+    
+    rs_tract_rsfc_corr = struct;
+    ps_tract_rsfc_corr = struct;
+    
+    for i1 = 1 : numel(grps)
+        grp = grps{i1};
+        
+        rs_tract_rsfc_corr.(grp) = nan(1, numel(sIDs.(grp)));
+        ps_tract_rsfc_corr.(grp) = nan(1, numel(sIDs.(grp)));
+        
+        for i2 = 1 : numel(sIDs.(grp))
+            x = a_cmat.(grp)(:, :, i2);
+            x = x(:);
+            y = corrDat.cms.(grp)(:, :, i2);
+            y = y(:);
+            [~, r_tract_rsfc_corr, p_tract_rsfc_corr] = lincorr(x, y);
+            
+            rs_tract_rsfc_corr.(grp)(i2) = r_tract_rsfc_corr;
+            ps_tract_rsfc_corr.(grp)(i2) = p_tract_rsfc_corr;
+
+            if isequal(grp, show_grp) && i2 == show_sidx;  
+                figure('Color', 'w');
+                semilogx(x, y, 'o');
+                xlabel('Normalized tract density');
+                ylabel('Fisher-transformed BOLD correlation coefficient ');
+                xs = get(gca, 'XLim'); 
+                ys = get(gca, 'YLim');
+                text(xs(1) + 0.0001 * range(xs), ys(2) - 0.06 * range(ys), ...
+                     sprintf('R = %.3f; p = %.3f', r_tract_rsfc_corr, p_tract_rsfc_corr));
+            end
+        end
+    end
+    
+    figure('Color', 'w', 'Position', [200, 200, 400, 300]);
+    errorbar([1, 2], [mean(rs_tract_rsfc_corr.PFS), mean(rs_tract_rsfc_corr.PWS)], ...
+             [ste(rs_tract_rsfc_corr.PFS), ste(rs_tract_rsfc_corr.PWS)]);
+    set(gca, 'XTick', [1, 2], 'XTickLabel', {'PFS', 'PWS'});
+    ylabel('Correlation coefficient (R) (Mean \pm 1 SEM)');
 end
 
 %% Exclude subjects based on gender (optional)
@@ -253,6 +296,15 @@ sgn_rs = nan(nrois, nrois);
     p_rnSV_spr, rho_rnSV_spr] = ...
         compare_cmats(a_cmat, bFold, 'ranksum', ...
                       SSI4, EH_comp, rnSV);
+                  
+if bRSFC
+    [p_rs_rsfc, sgn_rs_rsfc, ...
+        p_SSI4_spr_rsfc, rho_SSI4_spr_rsfc, ...
+        p_EHcomp_spr_rsfc, rho_EHcomp_spr_rsfc, ...
+        p_rnSV_spr_rsfc, rho_rnSV_spr_rsfc] = ...
+            compare_cmats(corrDat.cms, bFold, 'ranksum', ...
+                          SSI4, EH_comp, rnSV);
+end
 
 pnSigs(1) = numel(find(p_rs(:) < 0.05 & sgn_rs(:) == 1));
 pnSigs(2) = numel(find(p_rs(:) < 0.05 & sgn_rs(:) == -1));
@@ -266,28 +318,50 @@ p_bn_corrSSI4 = myBinomTest(pnSigs(1), sum(pnSigs), 0.5, 'Two');
 fprintf(1, 'Binomial test on the SSI-4 correlation results (two-tailed): p = %e\n', ...
         p_bn_corrSSI4);
 
-% --- Perform random permutation --- % 
-if ~isempty(fsic(varargin, 'randPerm'))
-    nRandPerm = varargin{fsic(varargin, 'randPerm') + 1};
+%% --- Perform random permutation --- %% 
+if ~isempty(fsic(varargin, '--randPerm'))
+    nRandPerm = varargin{fsic(varargin, '--randPerm') + 1};
     pnSigs = nan(nRandPerm, 2); % Numbers of positive and negative differences
+    
     % aa_cmat = cat(3, a_cmat.PFS, a_cmat.PWS);
     % nts = length(sIDs.PFS) + length(sIDs.PWS);
     rp_p_rs = nan(nrois, nrois, nRandPerm);
     rp_sgn_rs = nan(nrois, nrois, nRandPerm);
     
+    bPermSSI4 = ~isempty(fsic(varargin, '--randPermSSI4'));
+    
+    pnSigs_SSI4 = nan(nRandPerm, 2);
+    rp_p_SSI4_spr = nan(nrois, nrois, nRandPerm);
+    rp_rho_SSI4_spr = nan(nrois, nrois, nRandPerm);
+    
+%     for i1 = 1 : nRandPerm
     parfor i1 = 1 : nRandPerm
         if mod(i1, 100) == 0
             fprintf(1, 'Performing random permutation %d of %d...\n', i1, nRandPerm);
         end
-        [rp_p_rs(:, :, i1), rp_sgn_rs(:, :, i1)] = ...
-            compare_cmats(a_cmat, bFold, 'ranksum', '--randPerm');
+        
+        if ~bPermSSI4
+            [rp_p_rs(:, :, i1), rp_sgn_rs(:, :, i1)] = ...
+                compare_cmats(a_cmat, bFold, 'ranksum', '--randPerm');
+        else
+            [rp_p_rs(:, :, i1), rp_sgn_rs(:, :, i1), ...
+                rp_p_SSI4_spr(:, :, i1), rp_rho_SSI4_spr(:, :, i1), ...
+                ~, ~, ~, ~] = ...
+                compare_cmats(a_cmat, bFold, 'ranksum', ...
+                              SSI4, EH_comp, rnSV, '--randPerm');
+        end
 
 %         pnSigs(i1, 1) = numel(find(rp_p_rs(:, :, i1) < 0.05 & rp_sgn_rs(:, :, i1) == 1));
 %         pnSigs(i1, 2) = numel(find(rp_p_rs(:, :, i1) < 0.05 & rp_sgn_rs(:, :, i1) == -1));
         pnSigs(i1, :) = [numel(find(rp_p_rs(:, :, i1) < 0.05 & rp_sgn_rs(:, :, i1) == 1)), ...
                          numel(find(rp_p_rs(:, :, i1) < 0.05 & rp_sgn_rs(:, :, i1) == -1))];
+        if bPermSSI4
+            pnSigs_SSI4(i1, :) = [numel(find(rp_p_SSI4_spr(:, :, i1) < 0.05 & rp_rho_SSI4_spr(:, :, i1) > 0)), ...
+                                  numel(find(rp_p_SSI4_spr(:, :, i1) < 0.05 & rp_rho_SSI4_spr(:, :, i1) < 0))];
+        end
     end
     rp_pnRatios = (pnSigs(:, 1) + 1) ./ (pnSigs(:, 2) + 1);
+    
 
     pnSigs = nan(1, 2);
     pnSigs(1) = numel(find(p_rs(:) < 0.05 & sgn_rs(:) == 1));
@@ -296,6 +370,26 @@ if ~isempty(fsic(varargin, 'randPerm'))
     
     fprintf(1, 'Permutation test (N=%d) on the between-group difference results (one-tailed): p = %e\n', ...
         nRandPerm, length(find(rp_pnRatios <= pnRatios)) / nRandPerm);
+   
+    if bPermSSI4
+        fprintf(1, 'Permutation test (N=%d) on the correlation with SSI4 (one-tailed):\n', nRandPerm);
+        % --- Test the significant of number of significant differences ---
+        rp_totSig_SSI4 = sum(pnSigs_SSI4, 2);
+        totSig_SSI4 = numel(find(p_SSI4_spr(:) < 0.05));
+        
+        fprintf(1, '\tOn the number of significant correlations (regardless of sign): p = %e\n', ...
+                length(find(rp_totSig_SSI4 > totSig_SSI4)) / nRandPerm);
+        
+        rp_pnRatios_SSI4 = (pnSigs_SSI4(:, 1) + 1) ./ (pnSigs_SSI4(:, 2) + 1);
+        pnSigs_SSI4 = nan(1, 2);
+        pnSigs_SSI4(1) = numel(find(p_SSI4_spr(:) < 0.05 & rho_SSI4_spr(:) > 0));
+        pnSigs_SSI4(2) = numel(find(p_SSI4_spr(:) < 0.05 & rho_SSI4_spr(:) < 0));
+        pnRatios_SSI4 = ((pnSigs_SSI4(1) + 1) ./ (pnSigs_SSI4(2) + 1));
+        
+        
+        fprintf(1, '\tBias toward negative correlations: p = %e\n', ...
+                length(find(rp_pnRatios_SSI4 <= pnRatios_SSI4)) / nRandPerm);
+    end
 end
 
 if ~isempty(fsic(varargin, 'randPermPWS'))
@@ -564,8 +658,16 @@ sig(isnan(sig)) = 0;
     show_2d_mat(sig, sprois, hemi, ...
                 'Connectivity correlation with SSI4', visParams);
 % nSigs_corrSSI4 = numel(sigConns_corrSSI4);
-disp(['Connectivity correlation with SSI4: nSigs = ']);
+disp(['Tractography connectivity correlation with SSI4: nSigs = ']);
 disp(nSigs_corrSSI4);
+
+if bRSFC
+    sig_rsfc = sign(rho_SSI4_spr_rsfc) .* -log10(p_SSI4_spr_rsfc);
+    sig_rsfc(isnan(sig_rsfc)) = 0.0;
+    [nSigs_corrSSI4_rsfc, sigConns_corrSSI4_rsfc] = ...
+        show_2d_mat(sig_rsfc, sprois, hemi, ...
+                    'rsFMRI connectivity correlation with SSI4', visParams);
+end
 
 % --- Find the intersect of the sets of connections with significant bgd and
 % those with significant correlation with SSI-4 scores ---
