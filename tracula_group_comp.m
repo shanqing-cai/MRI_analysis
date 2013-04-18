@@ -1,4 +1,4 @@
-function tracula_group_comp()
+function tracula_group_comp(avgFAMode)
 %% Config: subject IDs   
 SIDS.PWS = {'S01', 'S04', 'S06', 'S07', 'S08', 'S09', 'S10', 'S12', ...
             'S15', 'S16', 'S17', 'S20', 'S21', 'S26', 'S28', 'S29', ...
@@ -81,14 +81,20 @@ for i0 = 1 : numel(TRACTS)
             % tractFA_bv.(t_tract).(grp)(i2, :) = tr_FA;
             tractFA_bv.(t_tract).(grp)(i2, :) = norm_tr_FA;
             
-            avgTractFA.(t_tract).(grp)(i2) = path_stats.FA_Avg_Weight;
+            if isequal(avgFAMode, 'weight')
+                avgTractFA.(t_tract).(grp)(i2) = path_stats.FA_Avg_Weight;
+            elseif isequal(avgFAMode, 'center')
+                avgTractFA.(t_tract).(grp)(i2) = path_stats.FA_Avg_Center;
+            else
+                error('Unrecognized avgFAMode: %s', avgFAMode);
+            end
+            
             tractVol.(t_tract).(grp)(i2) = path_stats.volume * VOXEL_VOL;
         end
     end
 end
 
-% Calculate the ICV (intra-cranial volume) and STV (supra-tentorial volume)
-icv = struct;
+% Calculate the ICV (intra-cranial volume) and STV (supra-tentorial volume)eicv = struct;
 stv = struct;
 for i1 = 1 : numel(grps)
     grp = grps{i1};
