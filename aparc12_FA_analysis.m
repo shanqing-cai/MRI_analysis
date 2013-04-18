@@ -1,4 +1,4 @@
-function aparc12_FA_analysis(xmm, dtiPrepMode)
+function aparc12_FA_analysis(meas, xmm, dtiPrepMode)
 sIDs.PWS = {'S01', 'S04', 'S06', 'S07', 'S08', 'S09', 'S10', 'S12', 'S15',  ...
             'S16', 'S17', 'S20', 'S21', 'S26', 'S28', 'S29', 'S33', 'S34', ...
             'S36', 'S37'};
@@ -18,11 +18,11 @@ sIDs.PFS = {'S02', 'S03', 'S05', 'S11', 'S13', 'S14', 'S18', 'S19', 'S22', ...
 DATA_DIR = '/users/cais/STUT/DATA';
 
 if isequal(dtiPrepMode, 'none')
-    DAT_FN_WC = 'aparc12_FA_wm%dmm.mat';
+    DAT_FN_WC = 'aparc12_%s_wm%dmm.mat';
 elseif isequal(dtiPrepMode, 'dtiprep')
-    DAT_FN_WC = 'aparc12_dtiprep_FA_wm%dmm.mat';
+    DAT_FN_WC = 'aparc12_dtiprep_%s_wm%dmm.mat';
 elseif isequal(dtiPrepMode, 'dtiprep2')
-    DAT_FN_WC = 'aparc12_dtiprep2_FA_wm%dmm.mat';
+    DAT_FN_WC = 'aparc12_dtiprep2_%s_wm%dmm.mat';
 else
     error('Unrecognized dtiPrepMode');
 end
@@ -116,7 +116,7 @@ for h1 = 1 : nROIs
 
         for i2 = 1 : numel(sIDs.(grp))
             sID = sIDs.(grp){i2};
-            matfn = fullfile(DATA_DIR, sID, sprintf(DAT_FN_WC, xmm));
+            matfn = fullfile(DATA_DIR, sID, sprintf(DAT_FN_WC, meas, xmm));
             if ~isfile(matfn)
                 error('Cannot find mat file: %s', matfn)
             end
@@ -129,7 +129,15 @@ for h1 = 1 : nROIs
                 continue;
             end
 
-            fa.(grp)(h1, i2) = meanfa(iroi);
+            if isequal(meas, 'FA')
+                fa.(grp)(h1, i2) = meanfa(iroi);
+            elseif isequal(meas, 'L1')
+                fa.(grp)(h1, i2) = meanL1(iroi);
+            elseif isequal(meas, 'RD')
+                fa.(grp)(h1, i2) = meanRD(iroi);
+            else
+                error('Unrecognized measure type: %s', meas);
+            end
         end
     end
 end
@@ -168,7 +176,6 @@ for i1 = 1 : numel(idx_sig)
 end
 
 %% Draw the aparc12 (SLaparc) ROI figures
-
 % Create green-red colormap
 cm0 = create_green_red_colormap();
 cm = nan(size(cm0, 1) + 1, size(cm0, 2));
@@ -244,7 +251,7 @@ for i1 = 1 : numel(hemis)
     
     % -- Save to image file -- %
     figFN = fullfile(figSaveDir, ...
-                     sprintf('aparc12_FA.%dmm.%s.tif', xmm, hemi));
+                     sprintf('aparc12_%s.%dmm.%s.tif', meas, xmm, hemi));
     saveas(hf_faSigMap.(hemi) , figFN, 'tif');
     check_file(figFN);
     fprintf(1, 'Saved FA to image file: %s\n', figFN);

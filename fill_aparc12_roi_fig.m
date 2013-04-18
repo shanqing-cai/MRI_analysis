@@ -120,7 +120,7 @@ if bDEBUG
 end
 
 %% (Optional): color the ROI names 
-if ~isempty(clrNameROIs)
+% if ~isempty(clrNameROIs)
     imRegText = cell(1, length(clrNameROIs));
     
     for i1 = 1 : numel(clrNameROIs)        
@@ -165,7 +165,7 @@ if ~isempty(clrNameROIs)
     end
     
     imto = cat(3, imtoClr_r, imtoClr_g, imtoClr_b);
-end
+% end
 
 %% 
 % imOut = imOut + repmat((-(imText - imIn)), [1, 1, 3]);
