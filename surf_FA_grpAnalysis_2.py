@@ -19,6 +19,8 @@ con_01 = '/users/cais/STUT/analysis/design/con_01'
 
 SURF_CSD_WC = "/software/Freesurfer/5.0.0/average/mult-comp-cor/fsaverage/rh/cortex/%s/%s/%s/mc-z.csd"
 
+VALID_MEAS = ["FA", "L1", "RD"]
+
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description="Group-level analysis")
     ap.add_argument("subjsList", \
@@ -27,6 +29,8 @@ if __name__ == "__main__":
         help="Projection depth (e.g., 2)")
     ap.add_argument("fwhm", \
         help="Surface FWHM (e.g., 15)")
+    ap.add_argument("--meas", dest="meas", default="FA", \
+        help="Type of diffusion-tensor measure {FA, L1, RD}")
     ap.add_argument("--exclParad", dest="exclName", default="", \
         help="Exclusion paradigm (e.g., noS24)")
     ap.add_argument("--clusterP", type=str, dest="clustPCfg", default="", \
@@ -40,8 +44,13 @@ if __name__ == "__main__":
     subjsList = args.subjsList
     depth = args.depth
     fwhm = args.fwhm
+    meas = args.meas
     exclName = args.exclName
     clustPCfg = args.clustPCfg
+
+    # Input sanity check
+    if VALID_MEAS.count(meas) == 0:
+        raise Exception, "Unrecognized diffusion tensor measure: %s" % meas
 
     # --- If cluster p is requested --- #
     # --- Locate the proper csd file --- #
@@ -110,6 +119,11 @@ if __name__ == "__main__":
     diagVec = [0] * nSubjs
     X_line = 'X = ['
 
+    if meas == "L1":
+        surf_FA_dir = surf_FA_dir.replace("_FA_", "_L1_")
+    elif meas == "RD":
+        surf_FA_dir = surf_FA_dir.replace("_FA_", "_L1_")
+
     if not os.path.isdir(surf_FA_dir):
         raise IOError, 'Directory not found: %s'%surf_FA_dir
     X_mat = os.path.join(surf_FA_dir, 'X.mat');
@@ -167,15 +181,15 @@ if __name__ == "__main__":
         concatCmd = 'mri_concat --i '
         for s in subjs:
             surf_FA_fn = os.path.join(FSDATA_dir, s, 'surf', \
-                                      '%s.FA_%smm_fwhm%s.fsaverage.mgh'\
-                                      %(hemi, depth, fwhm))
+                                      '%s.%s_%smm_fwhm%s.fsaverage.mgh'\
+                                      %(hemi, meas, depth, fwhm))
             if not os.path.isfile(surf_FA_fn):
                 raise IOError, 'Data file not found: %s'%surf_FA_fn
             concatCmd += surf_FA_fn + ' '
 
         mergedSurfFA = os.path.join(surf_FA_dir, \
-                                    '%s.merged_FA_%dS_%smm_fwhm%s.fsaverage.mgh'
-                                    %(hemi, nSubjs, depth, fwhm))
+                                    '%s.merged_%s_%dS_%smm_fwhm%s.fsaverage.mgh'
+                                    %(hemi, meas, nSubjs, depth, fwhm))
 
         concatCmd += '--o ' + mergedSurfFA
         saydo(concatCmd)
