@@ -122,7 +122,7 @@ if __name__ == "__main__":
     if meas == "L1":
         surf_FA_dir = surf_FA_dir.replace("_FA_", "_L1_")
     elif meas == "RD":
-        surf_FA_dir = surf_FA_dir.replace("_FA_", "_L1_")
+        surf_FA_dir = surf_FA_dir.replace("_FA_", "_RD_")
 
     if not os.path.isdir(surf_FA_dir):
         raise IOError, 'Directory not found: %s'%surf_FA_dir
@@ -183,6 +183,7 @@ if __name__ == "__main__":
             surf_FA_fn = os.path.join(FSDATA_dir, s, 'surf', \
                                       '%s.%s_%smm_fwhm%s.fsaverage.mgh'\
                                       %(hemi, meas, depth, fwhm))
+
             if not os.path.isfile(surf_FA_fn):
                 raise IOError, 'Data file not found: %s'%surf_FA_fn
             concatCmd += surf_FA_fn + ' '
@@ -251,7 +252,6 @@ if __name__ == "__main__":
             check_file(ocn_fns[hemi])
 
 
-        # sys.exit(0)
 
     print('\n================== To view the commands ==================')
     for hemi in hemis:

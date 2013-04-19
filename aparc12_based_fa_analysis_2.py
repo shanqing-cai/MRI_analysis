@@ -206,7 +206,6 @@ if __name__ == "__main__":
         print("ROI name = %s"%(t_roi))
 
         rois.append(t_roi)
-
         if not bMult:
             meanval.append(float(t_items[5]))
         else:
