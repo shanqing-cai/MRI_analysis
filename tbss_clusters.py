@@ -13,7 +13,6 @@ import xml.etree.ElementTree as ET
 from scai_utils import *
 from get_qdec_info import get_qdec_info
 
-# TODO: Use FSL's JHU white-matter atlas
 atlas_label_fn = \
     "/usr/share/fsl/5.0/data/atlases/JHU/JHU-ICBM-labels-1mm.nii.gz"
 atlas_tract_fn = \
@@ -28,7 +27,7 @@ aparc12_full_ctab = "/users/cais/STUT/scripts/slaparc_550.ctab"
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description="Get cluster summary from TBSS t-statistic files (*_tstat?.nii.gz)")
     ap.add_argument("tstatfn", type=str, \
-                        help="Voxel-")
+                        help="tstat image file (.nii.gz format)")
     ap.add_argument("voxp", type=float, \
         help="Voxel-wise p-value threshold, two-tailed (e.g., 0.001)")
     ap.add_argument("voxcnt", type=int, \
@@ -353,3 +352,6 @@ if __name__ == "__main__":
                clust_mniX[i0], clust_mniY[i0], clust_mniZ[i0], \
                clustSizes[i0], maxT[i0], maxCohenD[i0], \
                clustLabels[i0], clustTracts[i0], clustAparc12Lab[i0]))
+
+    if nClust == 0:
+        print("nClust = 0: Did not find any significant clusters")
