@@ -129,6 +129,31 @@ else
     load(dsFN);
 end
 
+%% Use signed test to determine the binary connectivity matrices for both groups
+a_binmat.PWS = zeros(nrois, nrois);
+a_binmat.PFS = zeros(nrois, nrois);
+
+p_thresh = 0.05 / nrois / nrois;
+
+for i1 = 1 : nrois
+    for i2 = 1 : nrois
+        for i3 = 1 : numel(grps)
+            grp = grps{i3};
+            a_binmat.(grp)(i1, i2) = ...
+                signtest(squeeze(a_cmat.(grp)(i1, i2, :)));
+            
+            
+        end
+    end
+end
+
+for i1 = 1 : numel(grps)
+    grp = grps{i1};
+    
+    a_binmat.(grp) = a_binmat.(grp) < p_thresh;
+end
+
+%% 
 if bRSFC
     show_grp = 'PWS';
     show_sidx = 2;
