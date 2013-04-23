@@ -24,8 +24,10 @@ TRACT_RES_DIR = '/users/cais/STUT/analysis/aparc12_tracts_pt2';
 RSFC_BASE_DIR = '/users/cais/STUT/analysis';
 RSFC_FILE_WC = 'corr_z_roi_aparc12.znbp2.noS24S38.%s.%s.mat';
 
+% === Reporting p-threshold === %
 p_thresh_unc = 0.01;
 p_thresh_crl_unc = 0.005;
+p_thresh_node_strength = 0.05;
 
 figSaveDir = '/users/cais/STUT/figures';
 
@@ -505,6 +507,41 @@ for i1 = 1 : nrois
     end
 end
 fprintf(1, '\n');
+
+%% BCT (Graph theory) analysis: node strengths
+a_strengths = struct;
+
+for i1 = 1 : numel(grps)
+    grp = grps{i1};
+    
+    a_strengths.(grp) = nan(nrois, size(a_cmat.(grp), 3));
+    
+    for i2 = 1 : size(a_cmat.(grp), 3)
+        a_strengths.(grp)(:, i2) = strengths_und(a_cmat.(grp)(:, :, i2));
+    end
+end
+
+[t_str, p_str, r_str_SSI4, p_str_SSI4] = ...
+    meta_bgComp_linCorr(a_strengths, 'node strength', SSI4, 'SSI4', ...
+                        p_thresh_node_strength, sprois);
+
+
+%% BCT (Graph theory) analysis: betweenness centrality (BC), weighted
+a_bc = struct;
+
+for i1 = 1 : numel(grps)
+    grp = grps{i1};
+    
+    a_bc.(grp) = nan(nrois, size(a_cmat.(grp), 3));
+    
+    for i2 = 1 : size(a_cmat.(grp), 3)
+        a_bc.(grp)(:, i2) = betweenness_wei(1 ./ a_cmat.(grp)(:, :, i2));       
+    end
+end
+
+[t_bc, p_bc, r_bc_SSI4, p_bc_SSI4] = ...
+    meta_bgComp_linCorr(a_bc, 'node strength', SSI4, 'SSI4', ...
+                        p_thresh_node_strength, sprois);
 
 %% BCT (Graph theory) analysis: Binary global efficiency
 efb = struct;

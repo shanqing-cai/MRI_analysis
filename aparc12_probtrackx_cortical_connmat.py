@@ -31,6 +31,8 @@ if __name__ == "__main__":
                     help="Use the speech (sub-)network")
     ap.add_argument("--speechMode", type=str, default="", \
                     help="Speech network type (e.g., speech_PFS_lh)")
+    ap.add_argument("--caww", dest="bCAWW", action="store_true", \
+                    help="Corpus-callosum avoidance and ipsilateral WM waypoint mask")
     ap.add_argument("--pt2", dest="bpt2", action="store_true", \
                     help="Use probtrackx2 results")
 
@@ -43,6 +45,7 @@ if __name__ == "__main__":
     sID = args.sID
     hemi = args.hemi
     bpt2 = args.bpt2
+    bCAWW = args.bCAWW
     bSpeech = args.bSpeech
     speechMode = args.speechMode
 
@@ -50,27 +53,30 @@ if __name__ == "__main__":
         raise Exception, "Options --speech and --speechMode cannot be used together"
     if bSpeech:
         speechMode = "speech"
-        
-    if len(speechMode) > 0.05:
+
+    if len(speechMode) > 6:
         if speechMode.count("_") !=3:
             raise Exception, \
                 "Cannot find exactly 3 underlines in speechMode: %s" \
                 % speechMode
         
-    sm0 = speechMode.split("_")
-    speechMode_noThr = "%s_%s_%s" % (sm0[0], sm0[1], sm0[2])
+        sm0 = speechMode.split("_")
+        speechMode_noThr = "%s_%s_%s" % (sm0[0], sm0[1], sm0[2])
+    else:
+        speechMode_noThr = ""
 
     if VALID_SPEECH_MODES.count(speechMode_noThr) == 0:
         raise Exception, "Unrecognized speechMode: %s" % speechMode
 
     if bpt2:
         TRACTS_RES_DIR = TRACTS_RES_DIR_PT2
+    check_dir(TRACTS_RES_DIR)
 
     # Check sanity of input arguments
     if not (hemi == "lh" or hemi == "rh"):
         raise Exception, "Unrecognized hemisphere: %s" % hemi
 
-    if len(speechMode) > 5:
+    if len(speechMode) > 6:
         if hemi != speechMode_noThr[-2 :]:
             raise Exception, "Mismatch between hemi=%s and speechMode=%s" \
                              % (hemi, speechMode)
@@ -113,8 +119,12 @@ if __name__ == "__main__":
     # Rows: seeds; columns: targets
     for (i0, seedROI) in enumerate(h_rois):
         roiResDir = os.path.join(sResDir, seedROI)
+        if bCAWW:
+            roiResDir += "_caww"
+
         if bpt2:
             roiResDir += "_pt2"
+
         check_dir(roiResDir)
         
         fdtp = os.path.join(roiResDir, "fdt_paths.nii.gz")
@@ -124,6 +134,7 @@ if __name__ == "__main__":
         check_file(fdtpn)
 
         print("Processing seed ROI: %s" % seedROI)
+
         for (i1, targROI) in enumerate(h_rois):
             # Get mean
             mean_cmd = "fslstats %s -k %s -m" % (fdtp, diff_roi_masks[i1])
@@ -169,7 +180,9 @@ if __name__ == "__main__":
     # Save results to mat file
     resMatFN = os.path.join(sResDir, "connmats.%s.mat" % hemi)    
     if bpt2:
-        resMatFN = resMatFN.replace("connmats.", "connmats.pt2.")    
+        resMatFN = resMatFN.replace("connmats.", "connmats.pt2.") 
+    if bCAWW:
+        resMatFN = resMatFN.replace("connmats.", "connmats.caww.")
     if speechMode != "":
         resMatFN = resMatFN.replace("connmats.", "connmats.%s." % speechMode)
 
