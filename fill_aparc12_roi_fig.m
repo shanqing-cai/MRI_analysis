@@ -21,6 +21,7 @@ if length(fillClrs) ~= length(fillROIs)
 end
 
 clrNameROIs = {};
+clrNameROIClrs = {};
 if ~isempty(fsic(varargin, 'clrNameROIs'))
     clrNameROIs = varargin{fsic(varargin, 'clrNameROIs') + 1};
     clrNameROIClrs = varargin{fsic(varargin, 'clrNameROIs') + 2};

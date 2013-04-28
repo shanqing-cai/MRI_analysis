@@ -6,11 +6,14 @@ import argparse
 
 from scai_utils import *
 
+"""
 speechROIs = ['H', 'PO', 'PP', 'PT', 'SPL', 'TP',  'SMA', 'aCG', 'aCO', \
               'aFO', 'aINS', 'aSTg', 'adSTs', \
               'aSMg', 'dIFo', 'dMC', 'dSC', 'mdPMC', 'midMC', 'midPMC', 'pCO', \
               'pFO', 'pIFs', 'pINS', 'aSTg', 'pSTg', 'pdPMC', 'pdSTs', \
-              'preSMA', 'vIFo', 'vMC', 'vPMC', 'vSC']
+              'preSMA', 'vIFo', 'vMC', 'vPMC', 'vSC', 'midCG']
+"""
+speechROIs = ['midCG']
 
 BIN = "/users/cais/STUT/scripts/aparc12_probtrackx_2.py"
 RES_DIR = "/users/cais/STUT/analysis/aparc12_tracts_pt2"

@@ -1,12 +1,14 @@
 function analyze_pt2_seedOnly_cmat(hemi, netwName, meas, cmat_thresh, ...
                                    bFold, bReload, varargin)
 %%
-% Input: meas - measure to analyze {'tmn', 'wtn'}
+% Inputs: meas - measure to analyze {'tmn', 'wtn'}
 %        cmat_thresh - threshold for binary global efficiency analysis
 %        bFold - whether each individual subject's matrix should be
 %                transposed and average with itself.
 %        bReload - whether the time-consuming data reloading should be
 %                  carried out
+% Optional inputs: '--caww': Use corpus callosum avoidance, white-matter 
+%                            waypoint data
 %
 %%
 sIDs.PWS = {'S01', 'S04', 'S06', 'S07', 'S08', 'S09', 'S10', 'S12', 'S15',  ...
@@ -37,6 +39,8 @@ roiFigs.rh = '/users/cais/STUT/figures/rois_rh_flat_SLaparc.tif';
 %%
 bMaleOnly = ~isempty(fsic(varargin, 'maleOnly'));
 
+bCAWW = ~isempty(fsic(varargin, 'caww'));
+
 %% Get speech-network ROI set
 VALID_NETW_NAMES = {'speech', 'speech_PFS_lh', 'speec_PFS_rh', ...
                     'speech_PFS_lh', 'speech_PWS_rh', ...
@@ -60,8 +64,12 @@ if ~isequal(netwName, 'speech')
         error('Hemisphere mismatch between netwName and hemi');
     end    
 end
+
 dsFN = sprintf('analyze_pt2_seedOnly_cmat_ds.%s.%s.mat', ...
                     netwName, hemi);
+if bCAWW
+    dsFN = strrep(dsFN, '.mat', '.caww.mat');
+end
 
 sprois = get_aparc12_cortical_rois(netwName, hemi);
 nrois = length(sprois);
@@ -109,8 +117,13 @@ if bReload
             sID = sIDs.(grp){i2};
             fprintf(1, 'Loading data from subject (%s) %s...\n', grp, sID);
 
-            mat_fn = fullfile(TRACT_RES_DIR, sID, ...
-                        sprintf('connmats.%s.pt2.%s.mat', netwName, hemi));
+            if ~bCAWW
+                mat_fn = fullfile(TRACT_RES_DIR, sID, ...
+                                  sprintf('connmats.%s.pt2.%s.mat', netwName, hemi));
+            else
+                mat_fn = fullfile(TRACT_RES_DIR, sID, ...
+                                  sprintf('connmats.%s.caww.pt2.%s.mat', netwName, hemi));
+            end
             sdat = load(mat_fn);
             if isequal(meas, 'tmn')
                 t_cmat = sdat.connmat_mean_norm;
@@ -524,7 +537,13 @@ end
 [t_str, p_str, r_str_SSI4, p_str_SSI4] = ...
     meta_bgComp_linCorr(a_strengths, 'node strength', SSI4, 'SSI4', ...
                         p_thresh_node_strength, sprois);
-
+                    
+plot_sorted_2g(a_strengths, sprois, p_str, ...
+               p_thresh_node_strength, 'Node strength');
+figFN = fullfile(figSaveDir, sprintf('%s.nodeStrength_bgc.eps', mfilename));
+saveas(gcf, figFN, 'eps');
+check_file(figFN);
+fprintf(1, 'INFO: Node strength between-group comparison results saved to file %s\n', figFN);
 
 %% BCT (Graph theory) analysis: betweenness centrality (BC), weighted
 a_bc = struct;
@@ -542,6 +561,13 @@ end
 [t_bc, p_bc, r_bc_SSI4, p_bc_SSI4] = ...
     meta_bgComp_linCorr(a_bc, 'node strength', SSI4, 'SSI4', ...
                         p_thresh_node_strength, sprois);
+                    
+plot_sorted_2g(a_bc, sprois, p_bc, ...
+               p_thresh_node_strength, 'Node betweenness centrality (BC)');
+figFN = fullfile(figSaveDir, sprintf('%s.nodeBC.bgc.eps', mfilename));
+saveas(gcf, figFN, 'eps');
+check_file(figFN);
+fprintf(1, 'INFO: Node strength between-group comparison results saved to file %s\n', figFN);
 
 %% BCT (Graph theory) analysis: Binary global efficiency
 efb = struct;
