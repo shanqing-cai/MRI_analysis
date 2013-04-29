@@ -554,7 +554,8 @@ for i1 = 1 : numel(grps)
     a_bc.(grp) = nan(nrois, size(a_cmat.(grp), 3));
     
     for i2 = 1 : size(a_cmat.(grp), 3)
-        a_bc.(grp)(:, i2) = betweenness_wei(1 ./ a_cmat.(grp)(:, :, i2));       
+        a_bc.(grp)(:, i2) = betweenness_wei(1 ./ a_cmat.(grp)(:, :, i2)) ...
+                            / ((nrois - 1) * (nrois - 2));
     end
 end
 
@@ -567,7 +568,7 @@ plot_sorted_2g(a_bc, sprois, p_bc, ...
 figFN = fullfile(figSaveDir, sprintf('%s.nodeBC.bgc.eps', mfilename));
 saveas(gcf, figFN, 'eps');
 check_file(figFN);
-fprintf(1, 'INFO: Node strength between-group comparison results saved to file %s\n', figFN);
+fprintf(1, 'INFO: Node BC between-group comparison results saved to file %s\n', figFN);
 
 %% BCT (Graph theory) analysis: Binary global efficiency
 efb = struct;
@@ -622,9 +623,13 @@ fprintf(1, 'Linear correl. with SSI4 (PWS): r = %f, p = %e\n\n', ...
 
 %% Compute and visualize the average cmats and significance of differences
 
-figSize = 800;
-verticalPadding = 2.5;
-horizontalPadding = 1.5;
+% figSize = 800;
+% verticalPadding = 2.5;
+% horizontalPadding = 1.5;
+
+figSize = 600;
+verticalPadding = 3.25;
+horizontalPadding = 2.5;
 
 mn_cmat = struct;
 
@@ -723,10 +728,12 @@ sig_rs(isnan(sig_rs)) = 0;
 
 [nSigs_bgd, sigConns_bgd] = ...
     show_2d_mat(sig_rs, sprois, hemi, ...
-                'Connectivity matrix difference', visParams);
+                'Connectivity matrix difference', visParams, ...
+                'noShowChi2Test');
 if bRSFC
     show_2d_mat(corrDat.ttest_sig, sprois, hemi, ...
-                'rsFMRI connectivity matrix difference', visParams);
+                'rsFMRI connectivity matrix difference', visParams, ...
+                'noShowChi2Test');
 end
 
 figFN = fullfile(figSaveDir, ...
@@ -744,7 +751,8 @@ sig(isnan(sig)) = 0;
 
 [nSigs_corrSSI4, sigConns_corrSSI4] = ...
     show_2d_mat(sig, sprois, hemi, ...
-                'Connectivity correlation with SSI4', visParams);
+                'Connectivity correlation with SSI4', visParams, ...
+                'noShowChi2Test');
 % nSigs_corrSSI4 = numel(sigConns_corrSSI4);
 disp(['Tractography connectivity correlation with SSI4: nSigs = ']);
 disp(nSigs_corrSSI4);
@@ -754,7 +762,8 @@ if bRSFC
     sig_rsfc(isnan(sig_rsfc)) = 0.0;
     [nSigs_corrSSI4_rsfc, sigConns_corrSSI4_rsfc] = ...
         show_2d_mat(sig_rsfc, sprois, hemi, ...
-                    'rsFMRI connectivity correlation with SSI4', visParams);
+                    'rsFMRI connectivity correlation with SSI4', visParams, ...
+                    'noShowChi2Test');
 end
 
 % --- Find the intersect of the sets of connections with significant bgd and
@@ -778,12 +787,42 @@ end
 saveas(gcf, figFN, 'tif');
 fprintf(1, 'Saved to image file: %s\n', figFN);
 
+%% Look for the intersction of regions with significant BGC and significant correlation with SSI4
+sigConns_bgd_str = cell(1, length(sigConns_bgd));
+for i1 = 1 : numel(sigConns_bgd)
+    sigConns_bgd_str{i1} = sprintf('%s - %s', sigConns_bgd{i1}{1}, sigConns_bgd{i1}{2});
+end
+
+sigConns_corrSSI4_str = cell(1, length(sigConns_corrSSI4));
+for i1 = 1 : numel(sigConns_corrSSI4)
+    sigConns_corrSSI4_str{i1} = sprintf('%s - %s', ...
+                                        sigConns_corrSSI4{i1}{1}, ...
+                                        sigConns_corrSSI4{i1}{2});
+end
+
+% for i1 = 1 : 2
+%     if i1 == 1
+%         dirName = 'PWS>PFS';
+%     else
+%         dirName = 'PWS<PFS';
+%     end
+%     
+bgc_corrSSI4_inter = intersect(sigConns_bgd_str, ...
+                               sigConns_corrSSI4_str);
+fprintf(1, '=== Intersection between connections with signficant BGC and \n');
+fprintf(1, '    those with significant corrSSI4 ===\n');
+for i1 = 1 : numel(bgc_corrSSI4_inter)
+    fprintf(1, '    %s\n', bgc_corrSSI4_inter{i1});
+end
+% end
+
 %% -- Connectivity matrix correlation with EH_comp --- %
 sig = sign(rho_EHcomp_spr) .* -log10(p_EHcomp_spr);
 sig(isnan(sig)) = 0;
 
 show_2d_mat(sig, sprois, hemi, ...
-            'Connectivity correlation with EHcomp', visParams);
+            'Connectivity correlation with EHcomp', visParams, ...
+            'noShowChi2Test');
         
 figFN = fullfile(figSaveDir, ...
     sprintf('aparc12_pt2_seedOnly_cmat_EHcomp_spr.%s.%s.%s.tif', ...
@@ -799,7 +838,8 @@ sig = sign(rho_rnSV_spr) .* -log10(p_rnSV_spr);
 sig(isnan(sig)) = 0;
 
 show_2d_mat(sig, sprois, hemi, ...
-            'Connectivity correlation with rnSV', visParams);
+            'Connectivity correlation with rnSV', visParams, ...
+            'noShowChi2Test');
         
 figFN = fullfile(figSaveDir, ...
     sprintf('aparc12_pt2_seedOnly_cmat_rnSV_spr.%s.%s.%s.tif', ...

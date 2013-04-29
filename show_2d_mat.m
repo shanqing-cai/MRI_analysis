@@ -1,4 +1,4 @@
-function [nSigs, sigConnections] = show_2d_mat(sig_rs, sprois, hemi, figName, visParams)
+function [nSigs, sigConnections] = show_2d_mat(sig_rs, sprois, hemi, figName, visParams, varargin)
 figSize = visParams(1);
 verticalPadding = visParams(2); 
 horizontalPadding = visParams(3);
@@ -67,8 +67,10 @@ ys = get(gca, 'YLim');
 colorbar;
 axis square;
 
-text(xs(1) + 0.6 * range(xs), ys(1) + 0.05 * range(ys), ...
-     ['chi^2 test: p = ', sprintf('%.3f', p_chi2)]);
+if isempty(fsic(varargin, 'noShowChi2Test'))
+    text(xs(1) + 0.6 * range(xs), ys(1) + 0.05 * range(ys), ...
+          ['chi^2 test: p = ', sprintf('%.3f', p_chi2)]);
+end
 
 % --- Labels for columns --- %
 ht_cols = nan(1, numel(sprois));
