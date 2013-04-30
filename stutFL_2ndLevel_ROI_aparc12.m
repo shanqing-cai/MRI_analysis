@@ -218,12 +218,12 @@ for i1 = 1 : numel(groups) + 1
         t_tVals = t_tVals(~isnan(t_tVals));
         
         [h, t_p_2L] = ttest(t_tVals);
-        pVals_2L_uc.(grp)(i2) = t_p_2L;        
+        pVals_2L_uc.(grp)(i2) = t_p_2L;
         
         if t_p_2L < p_thresh_2L_uc
             activROIs_uc.(grp){end + 1} = roiNames{i2};
-            fprintf('%s (unc.): ROI %s: 2L p = %f\n', ...
-                    grp, roiNames{i2}, t_p_2L);                
+            fprintf(1, '%s (unc.): ROI %s: 2L p = %f (mean = %f)\n', ...
+                    grp, roiNames{i2}, t_p_2L, mean(t_tVals));
             nSig_2L_uc.(grp) = nSig_2L_uc.(grp) + 1;
         end
     end

@@ -543,7 +543,8 @@ end
 
 [t_str, p_str, r_str_SSI4, p_str_SSI4] = ...
     meta_bgComp_linCorr(a_strengths, 'node strength', SSI4, 'SSI4', ...
-                        p_thresh_node_strength, sprois);
+                        p_thresh_node_strength, sprois, ...
+                        'testName', 'ttest2');
                     
 plot_sorted_2g(a_strengths, sprois, p_str, ...
                p_thresh_node_strength, 'Node strength');
@@ -569,8 +570,9 @@ for i1 = 1 : numel(grps)
 end
 
 [t_bc, p_bc, r_bc_SSI4, p_bc_SSI4] = ...
-    meta_bgComp_linCorr(a_bc, 'node strength', SSI4, 'SSI4', ...
-                        p_thresh_node_strength, sprois);
+    meta_bgComp_linCorr(a_bc, 'node BC', SSI4, 'SSI4', ...
+                        p_thresh_node_strength, sprois, ...
+                        'testName', 'ttest2');
                     
 plot_sorted_2g(a_bc, sprois, p_bc, ...
                p_thresh_node_strength, 'Node betweenness centrality (BC)');
@@ -726,6 +728,41 @@ if bFold
         saveas(gcf, figFN, 'tif');
         fprintf(1, 'Saved to image file: %s\n', figFN);
     end
+end
+
+%% --- NBS (optional) --- %%
+if ~isempty(fsic(varargin, 'NBS'))
+    % -- Linear correlation with SSI4 -- %
+    nbs_nIters = varargin{fsic(varargin, 'NBS') + 1};    
+    nbs_tail = varargin{fsic(varargin, 'NBS') + 2};
+    
+    [nbs_pval, adj] = nbs_bct_sc(a_cmat.PWS, SSI4, 'lincorr', -log10(0.05), ...
+                             nbs_nIters, nbs_tail);
+    
+    idxnz = find(adj);
+    drawCpnt = cell(length(idxnz), 3);
+    subsInvolved = [];
+    for h1 = 1 : length(idxnz)
+        [sub1, sub2] = ind2sub(size(adj), idxnz(h1));
+        subsInvolved(end + 1) = sub1;
+        subsInvolved(end + 1) = sub2;
+        
+        drawCpnt(h1, :) = {sprois{sub1}, sprois{sub2}, 1.0};
+    end
+    subsInvolved = unique(subsInvolved);
+    
+    draw_aparc12_roi_arrows(roiFigs.(hemi), drawCpnt, ...
+                            [0.2, 0.5, 2], ...
+                            {[0, 0.5, 0], 'b', 'r'});
+                        
+    fprintf(1, '=== NBS component ===\n');
+    fprintf(1, 'nIters = %d; tail = %s; p (corrected) = %f\n', ...
+            nbs_nIters, nbs_tail, nbs_pval);
+    fprintf(1, 'Involves %d ROIs and %d edges.\n', ...
+           length(subsInvolved), length(idxnz));
+    
+    % -- ~Linear correlation with SSI4 -- %
+%     [pval, adj] = nbs_bct(a_cmat.PWS, a_cmat.PFS, 2.5, 100, 'left');
 end
 
 %% --- Connectivity matrix difference --- %%
