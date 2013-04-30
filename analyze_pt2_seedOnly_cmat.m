@@ -41,6 +41,11 @@ bMaleOnly = ~isempty(fsic(varargin, 'maleOnly'));
 
 bCAWW = ~isempty(fsic(varargin, 'caww'));
 
+testName = 'ranksum';
+if ~isempty(fsic(varargin, 'ttest2'))
+    testName = 'ttest2';
+end
+
 %% Get speech-network ROI set
 VALID_NETW_NAMES = {'speech', 'speech_PFS_lh', 'speec_PFS_rh', ...
                     'speech_PFS_lh', 'speech_PWS_rh', ...
@@ -275,12 +280,14 @@ for i1 = 1 : numel(sprois)
         t_vec_PWS = dat.PWS(i2, :);
         t_vec_PFS = dat.PFS(i2, :);
         
-        [sv_p_rs(i2), ~, stats] = ranksum(t_vec_PFS(:), t_vec_PWS(:));
+        [sv_p_rs(i2), ~, ~] = ranksum(t_vec_PFS(:), t_vec_PWS(:));
         if median(t_vec_PWS) < median(t_vec_PFS)
             sv_sgn_rs(i2) = -1;
         else
             sv_sgn_rs(i2) = 1;
         end
+        
+        
     end
 end
 
@@ -334,7 +341,7 @@ sgn_rs = nan(nrois, nrois);
     p_SSI4_spr, rho_SSI4_spr, ...
     p_EHcomp_spr, rho_EHcomp_spr, ...
     p_rnSV_spr, rho_rnSV_spr] = ...
-        compare_cmats(a_cmat, bFold, 'ranksum', ...
+        compare_cmats(a_cmat, bFold, testName, ...
                       SSI4, EH_comp, rnSV);
                   
 if bRSFC
@@ -342,7 +349,7 @@ if bRSFC
         p_SSI4_spr_rsfc, rho_SSI4_spr_rsfc, ...
         p_EHcomp_spr_rsfc, rho_EHcomp_spr_rsfc, ...
         p_rnSV_spr_rsfc, rho_rnSV_spr_rsfc] = ...
-            compare_cmats(corrDat.cms, bFold, 'ranksum', ...
+            compare_cmats(corrDat.cms, bFold, testName, ...
                           SSI4, EH_comp, rnSV);
 end
 
@@ -382,12 +389,12 @@ if ~isempty(fsic(varargin, '--randPerm'))
         
         if ~bPermSSI4
             [rp_p_rs(:, :, i1), rp_sgn_rs(:, :, i1)] = ...
-                compare_cmats(a_cmat, bFold, 'ranksum', '--randPerm');
+                compare_cmats(a_cmat, bFold, testName, '--randPerm');
         else
             [rp_p_rs(:, :, i1), rp_sgn_rs(:, :, i1), ...
                 rp_p_SSI4_spr(:, :, i1), rp_rho_SSI4_spr(:, :, i1), ...
                 ~, ~, ~, ~] = ...
-                compare_cmats(a_cmat, bFold, 'ranksum', ...
+                compare_cmats(a_cmat, bFold, testName, ...
                               SSI4, EH_comp, rnSV, '--randPerm');
         end
 
@@ -446,7 +453,7 @@ if ~isempty(fsic(varargin, 'randPermPWS'))
             fprintf(1, 'Performing random permutation (PWS) %d of %d...\n', i1, nRandPermPWS);
         end
         [~, ~, rp_p_SSI4_spr(:, :, i1), rp_rho_SSI4_spr(:, :, i1), ~, ~, ~, ~] = ...
-            compare_cmats(a_cmat, bFold, 'ranksum', SSI4, EH_comp, rnSV, '--randPermPWS');
+            compare_cmats(a_cmat, bFold, testName, SSI4, EH_comp, rnSV, '--randPermPWS');
 
 %         pnSigs(i1, 1) = numel(find(rp_p_SSI4_spr(:, :, i1) < 0.05 & rp_rho_SSI4_spr(:, :, i1) > 0));
 %         pnSigs(i1, 2) = numel(find(rp_p_SSI4_spr(:, :, i1) < 0.05 & rp_rho_SSI4_spr(:, :, i1) < 0));
@@ -554,7 +561,9 @@ for i1 = 1 : numel(grps)
     a_bc.(grp) = nan(nrois, size(a_cmat.(grp), 3));
     
     for i2 = 1 : size(a_cmat.(grp), 3)
-        a_bc.(grp)(:, i2) = betweenness_wei(1 ./ a_cmat.(grp)(:, :, i2)) ...
+        invmat = 1 ./ a_cmat.(grp)(:, :, i2);
+        invmat(isinf(invmat)) = 1e9;
+        a_bc.(grp)(:, i2) = betweenness_wei(invmat) ...
                             / ((nrois - 1) * (nrois - 2));
     end
 end
