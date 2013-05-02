@@ -736,8 +736,10 @@ if ~isempty(fsic(varargin, 'NBS'))
     nbs_nIters = varargin{fsic(varargin, 'NBS') + 1};    
     nbs_tail = varargin{fsic(varargin, 'NBS') + 2};
     
-    [nbs_pval, adj] = nbs_bct_sc(a_cmat.PWS, SSI4, 'lincorr', -log10(0.05), ...
-                             nbs_nIters, nbs_tail);
+%     [nbs_pval, adj] = nbs_bct_sc(a_cmat.PWS, SSI4, 'lincorr', -log10(0.05), ...
+%                              nbs_nIters, nbs_tail);
+	[nbs_pval, adj] = nbs_bct_sc(a_cmat.PWS, SSI4, 'lincorr', -log10(0.05), ...
+                             nbs_nIters, nbs_tail, '--sum');
     
     idxnz = find(adj);
     drawCpnt = cell(length(idxnz), 3);
