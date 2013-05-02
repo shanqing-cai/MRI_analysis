@@ -1,4 +1,4 @@
-function [PVAL,ADJ,NULL]=nbs_bct_sc(X, Y, testName, THRESH, K, TAIL)
+function [PVAL,ADJ,NULL]=nbs_bct_sc(X, Y, testName, THRESH, K, TAIL, varargin)
 %NBS_BST        Network-based statistic, as described in [1]. 
 %
 %     PVAL = NBS(X,Y,THRESH) performs the NBS for populations X and Y for a
@@ -73,9 +73,10 @@ function [PVAL,ADJ,NULL]=nbs_bct_sc(X, Y, testName, THRESH, K, TAIL)
 %
 %     Written by: Andrew Zalesky, azalesky@unimelb.edu.au
 %     Revised by: (2013-04-29) Shanqing Cai, shanqing.cai@gmail.com
-%     
-
-
+%                   Enabled correlation and ranksum
+%
+%                 (2013-05-01) Shanqing Cai , shanqing.cai@gmail.com
+%                   Enabled the --sum option
 
 
 %Error checking
@@ -89,6 +90,7 @@ if nargin<5
     TAIL='both';
 end    
 
+bSum = ~isempty(fsic(varargin, '--sum'));
 
 %% -- Make sure that testName is valid -- %
 if ~isequal(testName, 'ttest2') && ~isequal(testName, 'ranksum') ...
@@ -176,6 +178,7 @@ for i=1:M
     stat(i)=tmp;
 end
 
+
 if strcmp(TAIL,'both')
     stat=abs(stat);
 elseif strcmp(TAIL,'left')
@@ -185,13 +188,22 @@ else
     error('Tail option not recognized\n');
 end
 
+if bSum
+    statf = zeros(N, N);
+    statf(ind) = stat;
+end
+
 %Threshold 
 ind_t=find(stat > THRESH);
+
+% if bSum
+%     sum_t = sum(stat(ind_t));
+% end
 
 %Suprathreshold adjacency matrix
 ADJ=spalloc(N,N,length(ind_t)); 
 ADJ(ind(ind_t))=1; 
-ADJ=ADJ+ADJ'; 
+ADJ=ADJ+ADJ';
 
 bgl=0;
 if exist('components')==2
@@ -227,6 +239,27 @@ else
     max_sz=0;
 end
 fprintf('Max component size is: %d\n',max_sz); 
+
+% --- Compute max_sum --- %
+if bSum
+    sums = zeros(1, length(ind_sz));
+    for i1 = 1 : length(ind_sz);
+        idxcmp = find(ADJ == i1);
+    
+        for i2 = 1 : length(idxcmp)
+            if statf(idxcmp(i2)) ~= 0
+                sums(i1) = sums(i1) + statf(idxcmp(i2));
+            end
+        end
+    end
+    
+    if ~isempty(sz_links)
+        max_sum = max(sums);
+    else
+        max_sum = 0;
+    end
+end
+
 
 %Empirically estimate null distribution of maximum compoent size by
 %generating K independent permutations. 
@@ -274,6 +307,11 @@ for k=1:K
     %Threshold
     ind_t=find(t_stat_perm>THRESH);
     
+    if bSum
+        t_statf = zeros(N, N);
+        t_statf(ind) = t_stat_perm;
+    end
+    
     %Suprathreshold adjacency matrix
     adj_perm=spalloc(N,N,length(ind_t));
     adj_perm(ind(ind_t))=1;
@@ -284,7 +322,7 @@ for k=1:K
         [a,sz]=components(adj_perm);
     else
         [a,sz]=get_components(adj_perm);
-    end
+    end        
     
     %Convert size from number of nodes to number of links 
     ind_sz=find(sz>1);
@@ -293,24 +331,75 @@ for k=1:K
         nodes=find(ind_sz(i)==a);
         sz_links_perm(i)=sum(sum(adj_perm(nodes,nodes)))/2;
     end
+    
+    if bSum        
+        for i=1:length(ind_sz)
+            nodes = find(ind_sz(i) == a);
+            adj_perm(nodes,nodes) = adj_perm(nodes, nodes)*(i+1); 
+        end
+        
+        adj_perm(find(adj_perm)) = adj_perm(find(adj_perm)) - 1;
+        
+        t_sums = zeros(1, length(ind_sz));
+        for i1 = 1 : length(ind_sz);
+            idxcmp = find(adj_perm == i1);
+
+            for i2 = 1 : length(idxcmp)
+                if t_statf(idxcmp(i2)) ~= 0
+                    t_sums(i1) = t_sums(i1) + t_statf(idxcmp(i2));
+                end
+            end
+        end
+
+        if ~isempty(sz_links_perm)
+            t_max_sum = max(t_sums);
+        else
+            t_max_sum = 0;
+        end
+    end
   
-    if ~isempty(sz_links_perm)
-        NULL(k)=max(sz_links_perm);
+    if ~bSum
+        if ~isempty(sz_links_perm)
+            NULL(k)=max(sz_links_perm);
+        else
+            NULL(k)=0; 
+        end
+        if NULL(k)>=max_sz
+            hit=hit+1;
+        end
+        
+        fprintf(1, 'Perm (size) %d of %d. Perm max is: %d. Observed max is: %d. P-val estimate is: %0.3f\n', ...
+                k, K, NULL(k), max_sz, hit / k);
     else
-        NULL(k)=0; 
+        if ~isempty(sz_links_perm)
+            NULL(k) = t_max_sum;
+        else
+            NULL(k) = 0;
+        end
+        
+        if NULL(k) >= max_sum
+            hit = hit + 1;
+        end
+       
+        fprintf(1, 'Perm (sum) %d of %d. Perm max is: %.3f. Observed max is: %.3f. P-val estimate is: %0.3f\n', ...
+                k, K, NULL(k), max_sum, hit / k);
     end
-    if NULL(k)>=max_sz
-        hit=hit+1;
-    end
-    fprintf('Perm %d of %d. Perm max is: %d. Observed max is: %d. P-val estimate is: %0.3f\n',k,K,NULL(k),max_sz,hit/k)
+    
 end
 
 %Calculate p-values
+
+
 for i=1:length(sz_links)
-    PVAL(i)=length(find(NULL>=sz_links(i)))/K;
+    if ~bSum
+        PVAL(i) = length(find(NULL >= sz_links(i))) / K;
+    else
+        PVAL(i) = length(find(NULL >= sums(i))) / K;
+    end
 end
+    
 
-
+return
 
 
 function t=ttest2_stat_only(x,y)
