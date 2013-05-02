@@ -94,7 +94,7 @@ bSum = ~isempty(fsic(varargin, '--sum'));
 
 %% -- Make sure that testName is valid -- %
 if ~isequal(testName, 'ttest2') && ~isequal(testName, 'ranksum') ...
-   && ~isequal(testName, 'lincorr')
+   && ~isequal(testName, 'lincorr') && ~isequal(testName, 'spear')
     error('Unrecognized testName: %s', testName);
 end
 
@@ -106,7 +106,7 @@ if isequal(testName, 'ttest2') || isequal(testName, 'ranksum')
     if any([Ix~=Jx,Iy~=Jy,Ix~=Jy])
         error('Matrices are not square, or are not of equal dimensions\n');
     end
-else % -- lincorr -- %
+else % -- Correlation lincorr or spear -- %
     dimsY = length(size(Y));
     if dimsY ~= 2
         error('Wrong dimension in Y: %d', dimsY');        
@@ -115,7 +115,7 @@ else % -- lincorr -- %
     Y = Y(:);
     [ny, wy] = size(Y);
     if wy ~= 1
-        error('Under lincorr, Y must be a vector (not a matrix)');
+        error('Under lincorr or spear, Y must be a vector (not a matrix)');
     end
     if nx ~= ny;
         error('Length of Y (%d) does not match the number of subjects in X (%d)', ...
@@ -154,7 +154,7 @@ if isequal(testName, 'ttest2') || isequal(testName, 'ranksum')
         tmp=squeeze(Y(:,:,i));
         pmat(:,i)=tmp(ind)';
     end
-else % -- lincorr -- %
+else % -- Correlation: lincorr or spear -- %
     pmat = repmat(Y', length(ind), 1);
 end
 clear Y
@@ -174,6 +174,11 @@ for i=1:M
         [kk, r2, tmp] = lincorr(cmat(i, :), pmat(i, :));
         
         tmp = sign(kk(2)) * -log10(tmp);
+    elseif isequal(testName, 'spear')
+        [rho, ~, tmp] = ...
+                spear(cmat(i, :)', pmat(i, :)');
+        
+        tmp = sign(rho) * -log10(tmp);        
     end
     stat(i)=tmp;
 end
@@ -291,6 +296,9 @@ for k=1:K
         elseif isequal(testName, 'lincorr')
             [kk, r2, tmp] = lincorr(d(i, 1 : nx), d(i, nx + 1 : nx + ny));
             tmp = sign(kk(2)) * -log10(tmp);
+        elseif isequal(testName, 'spear')
+            [rho, ~, tmp] = spear(d(i, 1 : nx)', d(i, nx + 1 : nx + ny)');
+            tmp = sign(rho) * -log10(tmp);
         end
             
         t_stat_perm(i)=tmp;
