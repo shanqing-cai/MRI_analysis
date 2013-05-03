@@ -62,3 +62,4 @@ if __name__ == "__main__":
     for (i0, t_maskfn) in enumerate(mask_fns):
         saydo("rm -f %s" % t_maskfn)
     
+    
