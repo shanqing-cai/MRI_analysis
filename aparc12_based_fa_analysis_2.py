@@ -10,7 +10,6 @@ from subprocess import Popen, PIPE
 from scipy.io import savemat
 from scai_utils import *
 
-
 ## Config: paths
 FNIRT_DIR = '/users/cais/STUT/analysis/nipype/normalize'
 FSDATA_DIR = '/users/cais/STUT/FSDATA'
