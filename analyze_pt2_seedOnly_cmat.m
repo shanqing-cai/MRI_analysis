@@ -30,6 +30,7 @@ RSFC_FILE_WC = 'corr_z_roi_aparc12.znbp2.noS24S38.%s.%s.mat';
 p_thresh_unc = 0.01;
 p_thresh_crl_unc = 0.005;
 p_thresh_node_strength = 0.05;
+NBS_COMPONENT_P_THRESH = 0.05;
 
 figSaveDir = '/users/cais/STUT/figures';
 
@@ -737,10 +738,28 @@ if ~isempty(fsic(varargin, 'NBS'))
     nbs_tail = varargin{fsic(varargin, 'NBS') + 2};
     
 %     [nbs_pval, adj] = nbs_bct_sc(a_cmat.PWS, SSI4, 'lincorr', -log10(0.05), ...
-%                              nbs_nIters, nbs_tail);
-	[nbs_pval, adj] = nbs_bct_sc(a_cmat.PWS, SSI4, 'lincorr', -log10(0.05), ...
-                             nbs_nIters, nbs_tail, '--sum');
-    
+%                              nbs_nIters, nbs_tail); % OLD
+%     [nbs_pval, adj] = nbs_bct_sc(a_cmat.PWS, SSI4, 'spear', -log10(0.05), ...
+%                              nbs_nIters, nbs_tail, '--sum');
+	[nbs_pval, adj] = nbs_bct_sc(a_cmat.PWS, SSI4, 'spear', -log10(0.01), ...
+                             nbs_nIters, nbs_tail, '--sum'); % TESTING
+                         
+    % -- Write significant components to file -- % 
+    sigCompCnt = 1;
+    for i1 = 1 : numel(nbs_pval)
+        if nbs_pval(i1) < NBS_COMPONENT_P_THRESH
+            txtfn = sprintf('corrSSI4_%s_sigComponent_%d.txt', hemi, sigCompCnt);
+            [t_nEdges, t_nNodes] = ...
+                write_netw_component_txt(adj, i1, sprois, p_SSI4_spr, txtfn);
+            
+            check_file(txtfn)
+            fprintf(1, 'INFO: corrSSI4: significant component #%d (nEdges=%d; nNodes=%d) saved to ASCII file:\n\t%s\n', ...
+                   sigCompCnt,  t_nEdges, t_nNodes, txtfn);
+            
+            sigCompCnt = sigCompCnt + 1;
+        end
+    end
+	
     idxnz = find(adj);
     drawCpnt = cell(length(idxnz), 3);
     subsInvolved = [];
