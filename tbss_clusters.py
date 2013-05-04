@@ -43,6 +43,9 @@ if __name__ == "__main__":
     voxcnt = args.voxcnt
 
     # Input sanity check
+    if not tstatfn.startswith("/"):
+        tstatfn = os.path.abspath(tstatfn)
+
     if voxp <= 0 or voxp >= 1:
         raise Exception, "Invalid value of voxp: %f" % voxp
     
