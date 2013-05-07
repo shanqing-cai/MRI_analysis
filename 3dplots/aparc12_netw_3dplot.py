@@ -17,11 +17,16 @@ STRUCT_VOL = "/home/cais/STUT/FSDATA/fsaverage2/mri/brain.nii.gz"
 # componentFile = "corrSSI4_sigComponents_1.txt"
 # edges = [[0, 1], [1, 2], [2, 3], [3, 0], [1, 3]]
 
+DEFAULT_OPACITY=1.0
+
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description="Render 3D network component image based on an input component file (from analyze_pt2_seedOnly_cmat.m. The thickness of the tubes are proportional to the sig value in the component file")
     ap.add_argument("componentFile", type=str)
     ap.add_argument("outputImgFN", type=str)
     ap.add_argument("--hemi", type=str, default="lh")
+    ap.add_argument("--opacity", dest="t_opacity", \
+                    type=float, default=DEFAULT_OPACITY, \
+                    help="Opacity of 3D tubes (default=%f)" % DEFAULT_OPACITY)
 
     if len(sys.argv) == 1:
         ap.print_help()
@@ -31,6 +36,7 @@ if __name__ == "__main__":
     componentFile = args.componentFile
     outputImgFN = args.outputImgFN
     hemi = args.hemi
+    t_opacity = args.t_opacity
     
     if not (hemi == "lh" or hemi == "rh"):
         raise Exception, "Unexpected hemi: %s" % hemi
@@ -90,7 +96,7 @@ if __name__ == "__main__":
         assert(tline.count(": sig=") == 1)
         
         linkName = tline.split(": sig=")[0]
-        sigVal = float(tline.split(": sig=")[1])
+        sigVal = np.abs(float(tline.split(": sig=")[1]))
 
         roi1Name = linkName.split(" - ")[0]
         roi2Name = linkName.split(" - ")[1]
@@ -154,7 +160,8 @@ if __name__ == "__main__":
         t_z = np.array([roi_coords[tlink[0]][2], \
                         roi_coords[tlink[1]][2]]) - 128
 
-        mlab.plot3d(t_x, t_y, t_z, tube_radius=sigVals[i0] * 0.3)
+        mlab.plot3d(t_x, t_y, t_z, tube_radius=sigVals[i0] * 0.3, 
+                    opacity=t_opacity)
         # mlab.plot3d(t_x, t_y, t_z, tube_radius=1)
 
         for j in range(2):
