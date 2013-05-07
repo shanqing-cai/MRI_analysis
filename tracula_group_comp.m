@@ -1,4 +1,7 @@
 function tracula_group_comp(avgFAMode)
+% Input arguments:
+%    argFAMode: weight or center
+% 
 %% Config: subject IDs   
 SIDS.PWS = {'S01', 'S04', 'S06', 'S07', 'S08', 'S09', 'S10', 'S12', ...
             'S15', 'S16', 'S17', 'S20', 'S21', 'S26', 'S28', 'S29', ...
@@ -8,7 +11,7 @@ SIDS.PWS = {'S01', 'S04', 'S06', 'S07', 'S08', 'S09', 'S10', 'S12', ...
 SIDS.PFS = {'S02', 'S03', 'S05', 'S11', 'S13', 'S14', 'S18', 'S19', ...
             'S22', 'S23', 'S25', 'S27', 'S30', 'S31', 'S32', ...
             'S35', 'S39'}; % Left out S24; S38
-        
+
 TRACULA_RES_DIR = '/users/cais/STUT/analysis/dti2/tracula';
 
 b_500 = 0;

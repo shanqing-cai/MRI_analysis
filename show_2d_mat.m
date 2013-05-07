@@ -1,4 +1,4 @@
-function [nSigs, sigConnections] = show_2d_mat(sig_rs, sprois, hemi, figName, visParams, varargin)
+function [nSigs, sigConnections, sigVals] = show_2d_mat(sig_rs, sprois, hemi, figName, visParams, varargin)
 figSize = visParams(1);
 verticalPadding = visParams(2); 
 horizontalPadding = visParams(3);
@@ -30,6 +30,8 @@ cm = [cm_upper(1 : end - 1, :); cm_lower(2 : end, :)];
 colormap(cm);
 
 sigConnections = {};
+sigVals = [];
+
 nSigs = [0, 0]; % [Pos, Neg]
 for k1 = 1 : numel(sprois)
     for k2 = 1 : numel(sprois)
@@ -51,6 +53,7 @@ for k1 = 1 : numel(sprois)
         
         if abs(sig_rs(k2, k1)) > abs(log10(0.05))
             sigConnections{end + 1} = {sprois{k1}, sprois{k2}};
+            sigVals(end + 1) = sig_rs(k2, k1);
         end
     end
 end

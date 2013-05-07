@@ -793,10 +793,31 @@ visParams = [figSize, verticalPadding, horizontalPadding, cellShift];
 sig_rs = sgn_rs .* -log10(p_rs);
 sig_rs(isnan(sig_rs)) = 0;
 
-[nSigs_bgd, sigConns_bgd] = ...
+[nSigs_bgd, sigConns_bgd, sigVals_bgd] = ...
     show_2d_mat(sig_rs, sprois, hemi, ...
                 'Connectivity matrix difference', visParams, ...
                 'noShowChi2Test');
+assert(length(sigConns_bgd) == length(sigVals_bgd));
+
+% -- Write to sigDiff_bgd -- %
+sigDiff_bgd_fn = sprintf('connMat_sigDiff_bgd_%s.txt', hemi);
+if isfile(sigDiff_bgd_fn)
+    delete(sigDiff_bgd_fn);
+    sigDiff_bgd_f = fopen(sigDiff_bgd_fn, 'wt');
+    
+    for i1 = 1 : numel(sigConns_bgd)
+        fprintf(sigDiff_bgd_f, '%s - %s: sig=%.6f\n', ...
+                sigConns_bgd{i1}{1}, sigConns_bgd{i1}{2}, sigVals_bgd(i1));
+    end
+    
+    fclose(sigDiff_bgd_f);
+    
+    check_file(sigDiff_bgd_fn);
+    fprintf(1, 'Wrote the list of significant between-group differences to file:\n\t%s\n', ...
+            sigDiff_bgd_fn);
+end
+
+
 if bRSFC
     show_2d_mat(corrDat.ttest_sig, sprois, hemi, ...
                 'rsFMRI connectivity matrix difference', visParams, ...
