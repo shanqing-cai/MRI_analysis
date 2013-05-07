@@ -28,19 +28,34 @@ else
 end
 
 TTEST_P_THRESH_UC = 0.05;
+LINCORR_P_THRESH_UC = 0.05;
 
-ROIS_BEHAVCORR = {'lh_vIFo', 'rh_vIFo', ...
-                  'lh_dIFo', 'rh_dIFo', ...        
-                  'lh_vPMC', 'rh_vPMC', ...
-                  'lh_SMA', 'rh_SMA', ...
-                  'lh_preSMA', 'rh_preSMA', ...
-                  'lh_vMC', 'rh_vMC', ...
-                  'lh_vSC', 'rh_vSC', ...
-                  'lh_aCO', 'rh_aCO', ...
-                  'lh_pCO', 'rh_pCO', ...
-                  'lh_H',   'rh_H', ...
-                  'lh_pSTg', 'rh_pSTg', ...
-                  'lh_PT', 'rh_PT'};
+%%
+% ROIS_BEHAVCORR = {'lh_vIFo', 'rh_vIFo', ...
+%                   'lh_dIFo', 'rh_dIFo', ...        
+%                   'lh_vPMC', 'rh_vPMC', ...
+%                   'lh_SMA', 'rh_SMA', ...
+%                   'lh_preSMA', 'rh_preSMA', ...
+%                   'lh_vMC', 'rh_vMC', ...
+%                   'lh_vSC', 'rh_vSC', ...
+%                   'lh_aCO', 'rh_aCO', ...
+%                   'lh_pCO', 'rh_pCO', ...
+%                   'lh_H',   'rh_H', ...
+%                   'lh_pSTg', 'rh_pSTg', ...
+%                   'lh_PT', 'rh_PT'};
+ROIS_BEHAVCORR = {};
+
+hemis = {'lh', 'rh'};
+
+t_rois = get_aparc12_cortical_rois('speech');
+for i1 = 1 : numel(hemis)
+    hemi = hemis{i1};
+    
+    for i2 = 1 : numel(t_rois)
+        ROIS_BEHAVCORR{end + 1} = sprintf('%s_%s', hemi, t_rois{i2});
+    end
+end
+
 % ROIS_sel = {'lh.iFo', 'lh.vPMC', 'lh.vMC', 'lh.aCO', 'lh.vSSC', ...
 %                 'lh.H', 'lh.PT'};
 ROIS_sel = {'lh_vIFo', 'lh_vPMC', 'lh_vMC', 'lh_aCO', 'lh_vSC', ...
@@ -56,7 +71,7 @@ defaultFigClr = 'w';
 
 figSaveDir = '/users/cais/STUT/figures';
 
-hemis = {'lh', 'rh'};
+
 for i0 = 1 : numel(hemis)
     hemi = hemis{i0};
     
@@ -88,6 +103,7 @@ hiliteROIClr = [1, 1, 0];
 
 %% Get behavioral measures
 grps = fields(sIDs);
+SSI4 = struct;
 for i1 = 1 : numel(grps)
     grp = grps{i1};
     auSTI.(grp) = get_qdec_measure(sIDs.(grp), 'auSTI');
@@ -97,9 +113,13 @@ for i1 = 1 : numel(grps)
     hnSV.(grp) = get_qdec_measure(sIDs.(grp), 'hnSV');
     rnSV.(grp) = get_qdec_measure(sIDs.(grp), 'rnSV');
     nnSV.(grp) = get_qdec_measure(sIDs.(grp), 'nnSV');
-    
+           
     EHc.(grp) = get_qdec_measure(sIDs.(grp), 'EH_comp_300');
     tempResp.(grp) = get_qdec_measure(sIDs.(grp), 'tempResp');
+    
+    if isequal(grp, 'PWS')
+        SSI4.(grp) = get_qdec_measure(sIDs.(grp), 'SSI');
+    end
 end
 
 %%
@@ -268,8 +288,14 @@ for i1 = 1 : numel(grps)
         t_roi = ROIS_BEHAVCORR{i2};
         
         i_roi = strmatch(t_roi, roi_names, 'exact');
+        i_roi = fsic(roi_names, t_roi);
         
-        roi_mean_fa.(grp)(:, i2) = fa.(grp)(i_roi, :)';
+        if length(i_roi) == 1
+            roi_mean_fa.(grp)(:, i2) = fa.(grp)(i_roi, :)';
+        else
+            fprintf(2, 'WARNING: Cannot find data for ROI %s for behavioral correlation.\n', ...
+                    t_roi);
+        end
     end
 end
 roi_mean_fa_2g = [roi_mean_fa.PWS; roi_mean_fa.PFS];
@@ -283,6 +309,8 @@ roi_mean_fa_2g = [roi_mean_fa.PWS; roi_mean_fa.PFS];
 [p_hnSV_corr_PWS, r_hnSV_corr_PWS] = corr_rois(roi_mean_fa.PWS, hnSV.PWS);
 [p_hnSV_corr_PFS, r_hnSV_corr_PFS] = corr_rois(roi_mean_fa.PFS, hnSV.PFS);
 
+[p_SSI4_corr_PWS, r_SSI4_corr_PWS] = corr_rois(roi_mean_fa.PWS, SSI4.PWS);
+
 plot_corr(p_rnSV_corr, r_rnSV_corr, ...
           p_rnSV_corr_PWS, r_rnSV_corr_PWS, ...
           p_rnSV_corr_PFS, r_rnSV_corr_PFS, ...
@@ -294,6 +322,15 @@ plot_corr(p_hnSV_corr, r_hnSV_corr, ...
           p_hnSV_corr_PFS, r_hnSV_corr_PFS, ...
           ROIS_BEHAVCORR, 'hnSV corr.', ...
           roi_mean_fa_2g, hnSV);
+      
+%% Correlation between FA and SSI4
+fprintf(1, '=== Significant correlations between ROI-mean FA and SSI4 ===\n');
+for i1 = 1 : numel(ROIS_BEHAVCORR)
+    if (p_SSI4_corr_PWS(i1) < LINCORR_P_THRESH_UC)
+        fprintf(1, '%s: p = %.4f; r = %.3f\n', ...
+                ROIS_BEHAVCORR{i1}, p_SSI4_corr_PWS(i1), r_SSI4_corr_PWS(i1));
+    end
+end
       
 
 %% Comparison wih SfN 2011 poster
