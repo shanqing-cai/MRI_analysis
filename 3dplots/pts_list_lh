@@ -3,15 +3,16 @@
 -43 25 14    0 0 1	# (Watkins et al.): L IFG
 -51 4 32     0 0 1	# (Watkins et al.): L precentral gyrus
 -54 0 20	 0 0 1	# (Watkins et al.): L ventral premotor cortex
--41 -9 25	 0 0 1	# (Watkins et al.): L arcuate fasciculus
 -40 -56 40   0 0 1	# (Watkins et al.): L SMg
 
--19 -18 -6   1 1 0	# (Chang et al.): L corticospinal / corticopontine tract
--23 -20 -1   1 1 0	# (Chang et al.): L corticospinal / posterior thalamic radiation
--48 -27 35	 1 1 0	# (Chang et al.): L superior longitudinal fasciculus
--40 -51 40   1 1 0	# (Chang et al.): L SLF posterior (lateral near BA40, SMg)
+-41 -9 25	 0.5 0.5 1	# (Chang et al.): L arcuate fasciculus
+-19 -18 -6   0.5 0.5 1	# (Chang et al.): L corticospinal / corticopontine tract
+-23 -20 -1   0.5 0.5 1	# (Chang et al.): L corticospinal / posterior thalamic radiation
+-48 -27 35	 0.5 0.5 1	# (Chang et al.): L superior longitudinal fasciculus
+-40 -51 40   0.5 0.5 1	# (Chang et al.): L SLF posterior (lateral near BA40, SMg)
 
 -38 -18 29   1 0 1	# (Kell et al.): L AF (anterior portion)
+-51 -7 19    1 0 1	# (Kell et al.): L Rolandic operculum
 
 -10 50 34    0 1 0	 # (Connally et al.): L superior frontal gyrus
 -31 38 5     0 1 0	 # (Connally et al.): L inferior frontal gyrus
