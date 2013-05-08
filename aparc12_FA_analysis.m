@@ -87,7 +87,8 @@ for i0 = 1 : numel(hemis)
     check_file(roiFigsText.(hemi));
 end
 
-hiliteROIClr = [1, 1, 0];
+hiliteROIClr = [0.5, 1, 0];
+drawBndClr = [0, 1.0, 0];
 
 %% Get aparc12 ROI names
 %if nargin == 0
@@ -195,6 +196,51 @@ for i1 = 1 : numel(idx_sig)
     end
 end
 
+%% Prepare for behavioral correlation
+roi_mean_fa = struct;
+for i1 = 1 : numel(grps)
+    grp = grps{i1};
+    roi_mean_fa.(grp) = nan(numel(sIDs.(grp)), numel(ROIS_BEHAVCORR));
+    
+    for i2 = 1 : numel(ROIS_BEHAVCORR)
+        t_roi = ROIS_BEHAVCORR{i2};
+        
+        i_roi = strmatch(t_roi, roi_names, 'exact');
+        i_roi = fsic(roi_names, t_roi);
+        
+        if length(i_roi) == 1
+            roi_mean_fa.(grp)(:, i2) = fa.(grp)(i_roi, :)';
+        else
+            fprintf(2, 'WARNING: Cannot find data for ROI %s for behavioral correlation.\n', ...
+                    t_roi);
+        end
+    end
+end
+roi_mean_fa_2g = [roi_mean_fa.PWS; roi_mean_fa.PFS];
+
+%% Correlation between FA and SSI4
+[p_SSI4_corr_PWS, r_SSI4_corr_PWS] = corr_rois(roi_mean_fa.PWS, SSI4.PWS);
+
+hashROIs.lh = {};
+hashROIs.rh = {};
+hashROISigns.lh = [];
+hashROISigns.rh = [];
+
+fprintf(1, '=== Significant correlations between ROI-mean FA and SSI4 ===\n');
+for i1 = 1 : numel(ROIS_BEHAVCORR)
+    if (p_SSI4_corr_PWS(i1) < LINCORR_P_THRESH_UC)
+        fprintf(1, '%s: p = %.4f; r = %.3f\n', ...
+                ROIS_BEHAVCORR{i1}, p_SSI4_corr_PWS(i1), r_SSI4_corr_PWS(i1));
+            
+
+        t_hemi = ROIS_BEHAVCORR{i1}(1 : 2);
+        hashROIs.(t_hemi){end + 1} = ROIS_BEHAVCORR{i1}(4 : end);
+        
+        hashROISigns.(t_hemi)(end + 1) = ...
+            (r_SSI4_corr_PWS(i1) > 0) * 2 - 1;
+    end
+end
+
 %% Draw the aparc12 (SLaparc) ROI figures
 % Create green-red colormap
 cm0 = create_green_red_colormap();
@@ -231,6 +277,8 @@ for i1 = 1 : numel(hemis)
     hiliteROIs = t_fillROIs(find(abs(t_sigVals) > -log10(0.05)));
     hiliteROIClrs = repmat({hiliteROIClr}, 1, length(hiliteROIs));
     
+    drawBndClrs = repmat({drawBndClr}, 1, length(hiliteROIs));
+    
     % -- Carry out the drawing -- %
     imBase = imread(roiFigs.(hemi));
     imDiv = imread(roiFigsDiv.(hemi));
@@ -239,7 +287,9 @@ for i1 = 1 : numel(hemis)
     imFASigMap.(hemi) = ...
         fill_aparc12_roi_fig(imBase, imDiv, imText, hemi, ...
                              t_fillROIs, 'fillClrs', t_fillClrs, ...
-                             'clrNameROIs', hiliteROIs, hiliteROIClrs);
+                             'clrNameROIs', hiliteROIs, hiliteROIClrs, ...
+                             'drawBndROIs', hiliteROIs, drawBndClrs, ...
+                             'hashROIs', hashROIs.(hemi), hashROISigns.(hemi))
                          
 	% -- Draw the color bar with ticks -- %
     tickSigVals = 0 : 0.5 : max_abs_sig;
@@ -278,27 +328,7 @@ for i1 = 1 : numel(hemis)
 end
 
 
-%% Prepare for behavioral correlation
-roi_mean_fa = struct;
-for i1 = 1 : numel(grps)
-    grp = grps{i1};
-    roi_mean_fa.(grp) = nan(numel(sIDs.(grp)), numel(ROIS_BEHAVCORR));
-    
-    for i2 = 1 : numel(ROIS_BEHAVCORR)
-        t_roi = ROIS_BEHAVCORR{i2};
-        
-        i_roi = strmatch(t_roi, roi_names, 'exact');
-        i_roi = fsic(roi_names, t_roi);
-        
-        if length(i_roi) == 1
-            roi_mean_fa.(grp)(:, i2) = fa.(grp)(i_roi, :)';
-        else
-            fprintf(2, 'WARNING: Cannot find data for ROI %s for behavioral correlation.\n', ...
-                    t_roi);
-        end
-    end
-end
-roi_mean_fa_2g = [roi_mean_fa.PWS; roi_mean_fa.PFS];
+
 
 %% Perform correlations with behavioral measures
 [p_rnSV_corr, r_rnSV_corr] = corr_rois(roi_mean_fa_2g, rnSV);
@@ -308,8 +338,6 @@ roi_mean_fa_2g = [roi_mean_fa.PWS; roi_mean_fa.PFS];
 [p_hnSV_corr, r_hnSV_corr] = corr_rois(roi_mean_fa_2g, hnSV);
 [p_hnSV_corr_PWS, r_hnSV_corr_PWS] = corr_rois(roi_mean_fa.PWS, hnSV.PWS);
 [p_hnSV_corr_PFS, r_hnSV_corr_PFS] = corr_rois(roi_mean_fa.PFS, hnSV.PFS);
-
-[p_SSI4_corr_PWS, r_SSI4_corr_PWS] = corr_rois(roi_mean_fa.PWS, SSI4.PWS);
 
 plot_corr(p_rnSV_corr, r_rnSV_corr, ...
           p_rnSV_corr_PWS, r_rnSV_corr_PWS, ...
@@ -323,15 +351,7 @@ plot_corr(p_hnSV_corr, r_hnSV_corr, ...
           ROIS_BEHAVCORR, 'hnSV corr.', ...
           roi_mean_fa_2g, hnSV);
       
-%% Correlation between FA and SSI4
-fprintf(1, '=== Significant correlations between ROI-mean FA and SSI4 ===\n');
-for i1 = 1 : numel(ROIS_BEHAVCORR)
-    if (p_SSI4_corr_PWS(i1) < LINCORR_P_THRESH_UC)
-        fprintf(1, '%s: p = %.4f; r = %.3f\n', ...
-                ROIS_BEHAVCORR{i1}, p_SSI4_corr_PWS(i1), r_SSI4_corr_PWS(i1));
-    end
-end
-      
+
 
 %% Comparison wih SfN 2011 poster
 

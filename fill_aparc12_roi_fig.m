@@ -27,8 +27,56 @@ if ~isempty(fsic(varargin, 'clrNameROIs'))
     clrNameROIClrs = varargin{fsic(varargin, 'clrNameROIs') + 2};
 end
 
+drawBndROIs = {};
+drawBndClrs = {};
+if ~isempty(fsic(varargin, 'drawBndROIs'))
+    drawBndROIs = varargin{fsic(varargin, 'drawBndROIs') + 1};
+    drawBndClrs = varargin{fsic(varargin, 'drawBndROIs') + 2};
+end
+
+hashROIs = {};
+hashROISigns = {};
+if ~isempty(fsic(varargin, 'hashROIs'))
+    hashROIs = varargin{fsic(varargin, 'hashROIs') + 1};
+    hashROISigns = varargin{fsic(varargin, 'hashROIs') + 2};
+end
+
 if length(clrNameROIs) ~= length(clrNameROIClrs)
     error('Length mismatch between clrNameROIs and clrNameROIClrs');
+end
+
+%%
+if ~isempty(hashROIs)
+    hashBG = zeros(size(imIn, 1), size(imIn, 2), 1);
+    
+    hashSpc = 10;
+    hashW = 2;
+    for i1 = 1 : hashSpc : size(hashBG, 1)
+        idx1 = i1;
+        idx2 = 1;
+        while (idx1 <= size(hashBG, 1)) && (idx2 <= size(hashBG, 2))
+            hashBG(idx1, idx2 : idx2 + hashW) = 1;
+            
+            idx1 = idx1 + 1;
+            idx2 = idx2 + 1;
+        end
+    end
+    
+    for i1 = 1 : hashSpc : size(hashBG, 2)
+        idx1 = 1;
+        idx2 = i1;
+        while (idx1 <= size(hashBG, 1)) && (idx2 <= size(hashBG, 2))
+            hashBG(idx1, idx2 : idx2 + hashW) = 1;
+            
+            idx1 = idx1 + 1;
+            idx2 = idx2 + 1;
+        end
+    end
+    
+    hashBG = hashBG(1 : size(imIn, 1), 1 : size(imIn, 2));
+    
+    hashBGs{1} = hashBG;
+    hashBGs{2} = fliplr(hashBG);
 end
 
 %%
@@ -55,6 +103,7 @@ end
 
 imRegions = zeros(size(imDiv, 1), size(imDiv, 2), numel(fillROIs));
 imRegionsClr = cell(1, numel(fillROIs));
+bnds = cell(1, numel(fillROIs));
 
 coords = [];
 for i1 = 1 : numel(fillROIs)
@@ -74,7 +123,37 @@ for i1 = 1 : numel(fillROIs)
                     roiName)
         end
     end
+    
+    
+    % -- Hash ROIs (optional) -- %
+    if ~isempty(fsic(hashROIs, fillROIs{i1}))
+        idxh = fsic(hashROIs, fillROIs{i1});
+        if hashROISigns(idxh) < 0
+            t_hashBG = hashBGs{1};
+        else
+            t_hashBG = hashBGs{2};
+        end
+        
+        
+        for j1 = 1 : size(t_imRegions, 3)
+            t_im = t_imRegions(:, :, j1);
+%         assert(isequal(size(t_imRegions), size(hashBG)));
+            idx_h = find(t_im & t_hashBG);
+        
+            t_im(idx_h) = 0;
+            
+            t_imRegions(:, :, j1) = t_im;
+        end
+    end
+    
     imRegions(:, :, i1) = sum(t_imRegions, 3);
+    
+    if ~isempty(fsic(drawBndROIs, fillROIs{i1}))
+        imDil = imdilate(imRegions(:, :, i1), strel('disk', 3));
+        bnd = bwboundaries(imDil);
+        
+        bnds{i1} = bnd{1};
+    end
     
     % -- Furnish color information -- %
     imRegionsClr{i1} = zeros(size(imDiv, 1), size(imDiv, 2), 3);
@@ -120,58 +199,72 @@ if bDEBUG
     end
 end
 
+
+
 %% (Optional): color the ROI names 
 % if ~isempty(clrNameROIs)
-    imRegText = cell(1, length(clrNameROIs));
-    
-    for i1 = 1 : numel(clrNameROIs)        
-        roiName = sprintf('%s.%s', hemi, clrNameROIs{i1});
-        roiCoord = get_aparc12_roi_fig_coords(roiName, 1);
-        t_imRegions = zeros(size(imDiv, 1), size(imDiv, 2), length(roiCoord));
+imRegText = cell(1, length(clrNameROIs));
 
-        for i2 = 1 : length(roiCoord)
-            if ~iscell(roiCoord)
-                pause(0);
-            end
-            if iscell(roiCoord) && ~isempty(roiCoord)
-                t_imRegions(:, :, i2) = regiongrowing(imDiv, roiCoord{i2}(2), roiCoord{i2}(1));
-                coords = [coords; [roiCoord{i2}(2), roiCoord{i2}(1)]];
-            else
-                fprintf(2, 'WARNING: Skipping ROI %s, due to missing ROI coordinates.\n', ...
-                        roiName)
-            end
+for i1 = 1 : numel(clrNameROIs)
+    roiName = sprintf('%s.%s', hemi, clrNameROIs{i1});
+    roiCoord = get_aparc12_roi_fig_coords(roiName, 1);
+    t_imRegions = zeros(size(imDiv, 1), size(imDiv, 2), length(roiCoord));
+
+    for i2 = 1 : length(roiCoord)
+        if ~iscell(roiCoord)
+            pause(0);
         end
-        imRegText{i1} = t_imRegions;
-       
+        if iscell(roiCoord) && ~isempty(roiCoord)
+            t_imRegions(:, :, i2) = regiongrowing(imDiv, roiCoord{i2}(2), roiCoord{i2}(1));
+            coords = [coords; [roiCoord{i2}(2), roiCoord{i2}(1)]];
+        else
+            fprintf(2, 'WARNING: Skipping ROI %s, due to missing ROI coordinates.\n', ...
+                    roiName)
+        end
     end
+    imRegText{i1} = t_imRegions;
+
+end
     
     
-    idxText = find(imto > 0.5);
-    imtoClr_r = imto;
-    imtoClr_g = imto;
-    imtoClr_b = imto;
-    
-    for i1 = 1 : numel(clrNameROIs)
-        idxFill = find(imRegText{i1});
+idxText = find(imto > 0.5);
+imtoClr_r = imto;
+imtoClr_g = imto;
+imtoClr_b = imto;
+
+for i1 = 1 : numel(clrNameROIs)
+    idxFill = find(imRegText{i1});
 %         
 %         idxFill = union(idxFill1, idxFill2);
 %         idxFill = union(idxFill, idxFill3);
-        
-        idxFill = intersect(idxFill, idxText);
-        
-        imtoClr_r(idxFill) = 1 - clrNameROIClrs{i1}(1);
-        imtoClr_g(idxFill) = 1 - clrNameROIClrs{i1}(2);
-        imtoClr_b(idxFill) = 1 - clrNameROIClrs{i1}(3);
-        
-    end
-    
-    imto = cat(3, imtoClr_r, imtoClr_g, imtoClr_b);
+
+    idxFill = intersect(idxFill, idxText);
+
+    imtoClr_r(idxFill) = 1 - clrNameROIClrs{i1}(1);
+    imtoClr_g(idxFill) = 1 - clrNameROIClrs{i1}(2);
+    imtoClr_b(idxFill) = 1 - clrNameROIClrs{i1}(3);
+
+end
+
+imto = cat(3, imtoClr_r, imtoClr_g, imtoClr_b);
 % end
+
+%% Optional: draw highlighting boundaries 
+for i1 = 1 : numel(drawBndROIs)
+    idx = fsic(fillROIs, drawBndROIs{i1});
+    
+    imbnd = zeros(size(imto));
+    for i2 = 1 : size(bnds{idx}, 1)
+        imbnd(bnds{idx}(i2, 1), bnds{idx}(i2, 2), :) = 1.0 - drawBndClrs{i1};
+    end
+    imbnd = imdilate(imbnd, strel('disk', 1));
+    
+    imto = imto + imbnd;
+end
 
 %% 
 % imOut = imOut + repmat((-(imText - imIn)), [1, 1, 3]);
 % imOut1 = nan(size(imOut, 1), size(imOut, 2), 0);
-
 imOut_r = imOut(:, :, 1);
 imOut_g = imOut(:, :, 2);
 imOut_b = imOut(:, :, 3);
