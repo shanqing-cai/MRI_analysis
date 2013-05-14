@@ -31,7 +31,7 @@ if __name__ == "__main__":
     ap.add_argument("voxp", type=float, \
         help="Voxel-wise p-value threshold, two-tailed (e.g., 0.001)")
     ap.add_argument("voxcnt", type=int, \
-        help="Voxel counter threshold (e.g., 10)")
+        help="Voxel counter threshold (Unit: ) (e.g., 10)")
     
     if len(sys.argv) == 1:
         ap.print_help()
@@ -126,7 +126,8 @@ if __name__ == "__main__":
                                  % (voxp, voxcnt)))
     mvc_cmd = "mri_volcluster --in %s --thmin 0.5 --minsizevox %d --sum %s --out %s" % \
               (masked_fn, voxcnt, sum_fn, volclust_out)
-    os.system("rm -f %s" % sum_fn)
+    print("sum_fn = %s" % sum_fn)
+#    os.system("rm -f %s" % sum_fn)
     os.system("rm -f %s" % volclust_out)
     saydo(mvc_cmd)
     check_file(sum_fn)

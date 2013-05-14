@@ -645,54 +645,93 @@ horizontalPadding = 2.5;
 
 mn_cmat = struct;
 
-
 for i1 = 1 : numel(grps)
     grp = grps{i1};
     
     mn_cmat.(grp) = mean(a_cmat.(grp), 3);
-    
     
     figure('Position', [100, 300, figSize, figSize], 'Color', 'w', ...
            'Name', ['Connecivity matrix: ', grp]);
     axis tight;    
         
 %     subplot(1, 2, i1);
-    imagesc(mn_cmat.(grp));
-    hold on;
-    colormap bone;
-    axis square;
-    
-%     title(grp);
-    colorbar;
-    
-    set(gca, 'XTick', [], 'YTick', []);
-    xs = get(gca, 'XLim');
-    ys = get(gca, 'YLim');
-    
-    % --- Labels for columns --- %
-    ht_cols = nan(1, numel(sprois));
-    ht_cols_top = nan(1, numel(sprois));
-    for k1 = 1 : numel(sprois)
-        ht_cols(k1) = text(k1, numel(sprois) + verticalPadding, ...
-                           strrep(sprois{k1}, [hemi, '_'], ''), ...
-                           'FontSize', 12);
-        ht_cols_top(k1) = text(k1, 0, ...
-                           strrep(sprois{k1}, [hemi, '_'], ''), ...
-                           'FontSize', 12);
-        set(ht_cols(k1), 'rotation', 90);
-        set(ht_cols_top(k1), 'rotation', 90);
+    if isequal(grp, 'PWS')
+        vis_mn_cmat.(grp) = tril(mn_cmat.(grp), -1);
+    else
+        vis_mn_cmat.(grp) = triu(mn_cmat.(grp), 1);
     end
-    
-    % --- Labels for rows --- %
-    ht_rows = nan(1, numel(sprois));
-    for k1 = 1 : numel(sprois)
-        ht_rows(k1) = text(-horizontalPadding, k1, ...
-                           strrep(sprois{k1}, [hemi, '_'], ''), ...
-                           'FontSize', 12);
-    end
-       
-    plot(xs, ys, '-', 'Color', [0.5, 0.5, 0.5]);
 end
+
+vis_mn_cmat_2g = vis_mn_cmat.PWS + vis_mn_cmat.PFS;
+
+imagesc(vis_mn_cmat_2g);
+hold on;
+
+% Create white-black colormap
+cm = colormap;
+ncm = size(cm, 1);
+% cm = repmat(linspace(1, 0, ncm)', 1, 3);
+cm = repmat(logspace(0, -1.2, ncm)', 1, 3);
+% cm = repmat(linspace(0, 1, ncm)', 1, 3);
+colormap(cm);
+
+axis square;
+
+%     title(grp);
+colorbar;
+
+set(gca, 'XTick', [], 'YTick', []);
+xs = get(gca, 'XLim');
+ys = get(gca, 'YLim');
+
+% --- Labels for columns --- %
+ht_cols = nan(1, numel(sprois));
+ht_cols_top = nan(1, numel(sprois));
+horizontalAdjust = -0.10;
+verticalAdjust = 0.75;
+for k1 = 1 : numel(sprois)
+    ht_cols(k1) = text(k1, ...
+                       numel(sprois) + verticalAdjust, ...
+                       strrep(sprois{k1}, [hemi, '_'], ''), ...
+                       'FontSize', 12);
+    ht_cols_top(k1) = text(k1 + horizontalAdjust, ...
+                           0, ...
+                           strrep(sprois{k1}, [hemi, '_'], ''), ...
+                           'FontSize', 12);
+    set(ht_cols(k1), 'rotation', -90);
+    set(ht_cols_top(k1), 'rotation', 90);
+end
+
+% --- Labels for rows --- %
+ht_rows = nan(1, numel(sprois));
+for k1 = 1 : numel(sprois)
+    ht_rows(k1) = text(-horizontalPadding, k1, ...
+                       strrep(sprois{k1}, [hemi, '_'], ''), ...
+                       'FontSize', 12);
+end
+
+% --- Draw grid --- %
+gridClr = [0.8, 0.8, 0.8];
+% -- Vertical -- %
+for x0 = xs(1) : 1.0 : xs(2)
+%     plot([x0, x0], [x0, ys(2)], '-', 'Color', gridClr);
+    plot([x0, x0], ys, '-', 'Color', gridClr);
+end
+
+% -- Horizontal -- %
+for y0 = ys(1) : 1.0 : ys(2)
+%     plot([xs(1), y0], [y0, y0], '-', 'Color', gridClr);
+    plot(xs, [y0, y0], '-', 'Color', gridClr);
+end
+
+plot(xs, ys, '-', 'Color', [0.5, 0.5, 0.5]);
+
+figFN = fullfile(figSaveDir, ...
+                 sprintf('aparc12_pt2_seedOnly_mnCMat2g.%s.%s.%s.tif', ...
+                          netwName, hemi, meas));
+saveas(gcf, figFN, 'tif');
+check_file(figFN);
+fprintf(1, 'INFO: Saved 2-group mean cmat plot to file:\n\t%s\n', figFN);
 
 %% Draw ROI figures
 if bFold
@@ -737,10 +776,10 @@ if ~isempty(fsic(varargin, 'NBS'))
     nbs_nIters = varargin{fsic(varargin, 'NBS') + 1};    
     nbs_tail = varargin{fsic(varargin, 'NBS') + 2};
     
-%     [nbs_pval, adj] = nbs_bct_sc(a_cmat.PWS, SSI4, 'lincorr', -log10(0.05), ...
-%                              nbs_nIters, nbs_tail); % OLD
-%     [nbs_pval, adj] = nbs_bct_sc(a_cmat.PWS, SSI4, 'spear', -log10(0.05), ...
-%                              nbs_nIters, nbs_tail, '--sum');
+    % -- Between group comparison -- %
+%     [nbs_pval, adj] = nbs_bct_sc(a_cmat.PWS, a_cmat.PFS, 'ranksum', -log10(0.01), ...
+%                                  nbs_nIters, nbs_tail, '--sum');
+
 	[nbs_pval, adj] = nbs_bct_sc(a_cmat.PWS, SSI4, 'spear', -log10(0.01), ...
                              nbs_nIters, nbs_tail, '--sum'); % TESTING
                          
@@ -796,7 +835,7 @@ sig_rs(isnan(sig_rs)) = 0;
 [nSigs_bgd, sigConns_bgd, sigVals_bgd] = ...
     show_2d_mat(sig_rs, sprois, hemi, ...
                 'Connectivity matrix difference', visParams, ...
-                'noShowChi2Test');
+                'noShowChi2Test', 'colorBarBGC');
 assert(length(sigConns_bgd) == length(sigVals_bgd));
 
 % -- Write to sigDiff_bgd -- %
@@ -840,7 +879,7 @@ sig(isnan(sig)) = 0;
 [nSigs_corrSSI4, sigConns_corrSSI4] = ...
     show_2d_mat(sig, sprois, hemi, ...
                 'Connectivity correlation with SSI4', visParams, ...
-                'noShowChi2Test');
+                'noShowChi2Test', 'colorBarCorr');
 % nSigs_corrSSI4 = numel(sigConns_corrSSI4);
 disp(['Tractography connectivity correlation with SSI4: nSigs = ']);
 disp(nSigs_corrSSI4);

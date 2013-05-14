@@ -1,4 +1,5 @@
-function [nSigs, sigConnections, sigVals] = show_2d_mat(sig_rs, sprois, hemi, figName, visParams, varargin)
+function [nSigs, sigConnections, sigVals] = ...
+    show_2d_mat(sig_rs, sprois, hemi, figName, visParams, varargin)
 figSize = visParams(1);
 verticalPadding = visParams(2); 
 horizontalPadding = visParams(3);
@@ -32,15 +33,40 @@ colormap(cm);
 sigConnections = {};
 sigVals = [];
 
+%% --- Grid --- %%
+xs = get(gca, 'XLim');
+ys = get(gca, 'YLim');
+
+gridClr = [0.8, 0.8, 0.8];
+% -- Vertical -- %
+for x0 = xs(1) : 1.0 : xs(2)
+    plot([x0, x0], [x0, ys(2)], '-', 'Color', gridClr);
+%     plot([x0, x0], ys, '-', 'Color', gridClr);
+end
+
+% -- Horizontal -- %
+for y0 = ys(1) : 1.0 : ys(2) - 1.0
+    plot([xs(1), y0], [y0, y0], '-', 'Color', gridClr);
+%     plot(xs, [y0, y0], '-', 'Color', gridClr);
+end
+
+plot(xs, xs, '-', 'Color', [0.5, 0.5, 0.5]);
+
+
+%%
 nSigs = [0, 0]; % [Pos, Neg]
 for k1 = 1 : numel(sprois)
     for k2 = 1 : numel(sprois)
         if abs(sig_rs(k2, k1)) > abs(log10(0.005))
-            text(k1 - cellShift, k2 - cellShift, '*', 'Color', 'w');
+%             text(k1 - cellShift, k2 - cellShift, '*', 'Color', 'w');
+            draw_asterisk(k1, k2, 'w');
         elseif abs(sig_rs(k2, k1)) > abs(log10(0.01))
-            text(k1 - cellShift, k2 - cellShift, 'X', 'Color', 'w');
+%             text(k1 - cellShift, k2 - cellShift, 'X', 'Color', 'w');
+            draw_x(k1, k2, 'w');
         elseif abs(sig_rs(k2, k1)) > abs(log10(0.05))
-            text(k1 - cellShift, k2 - cellShift, 'O', 'Color', 'w');        
+%             text(k1 - cellShift, k2 - cellShift, 'O', 'Color', 'w'); 
+            draw_diamond(k1, k2, 'w');
+            
         end
         
         if abs(sig_rs(k2, k1)) > abs(log10(0.05))
@@ -78,14 +104,17 @@ end
 % --- Labels for columns --- %
 ht_cols = nan(1, numel(sprois));
 ht_cols_top = nan(1, numel(sprois));
+horizontalAdjust = -0.10;
+verticalAdjust = 0.75;
 for k1 = 1 : numel(sprois)
-    ht_cols(k1) = text(k1, numel(sprois) + verticalPadding, ...
+    ht_cols(k1) = text(k1, ...
+                       numel(sprois) + verticalAdjust, ...
                        strrep(sprois{k1}, [hemi, '_'], ''), ...
                        'FontSize', 12);
-    ht_cols_top(k1) = text(k1, 0, ...
+    ht_cols_top(k1) = text(k1 + horizontalAdjust, 0, ...
                        strrep(sprois{k1}, [hemi, '_'], ''), ...
                        'FontSize', 12);
-    set(ht_cols(k1), 'rotation', 90);
+    set(ht_cols(k1), 'rotation', -90);
     set(ht_cols_top(k1), 'rotation', 90);
 end
 
@@ -97,5 +126,51 @@ for k1 = 1 : numel(sprois)
                        'FontSize', 12);
 end
 
+%% --- Draw legend --- %%
+lgdX = 19;
+lgdY0 = 3;
+draw_diamond(lgdX, lgdY0, 'k');
+text(lgdX + 1.5, lgdY0, 'p < 0.05');
 
+draw_x(lgdX, lgdY0 + 2, 'k');
+text(lgdX + 1.5, lgdY0 + 2, 'p < 0.01');
+
+draw_asterisk(lgdX, lgdY0 + 4, 'k');
+text(lgdX + 1.5, lgdY0 + 4, 'p < 0.005');
+
+rectangle('Position', [lgdX - 1, lgdY0 - 1, 8, 6], ...          
+          'EdgeColor', 'k', 'FaceColor', 'none');
+      
+
+%% --- Color bar labels --- %%
+text(30, -1.5, 'Sig-value', 'Color', 'k');
+
+if ~isempty(fsic(varargin, 'colorBarBGC'))
+    text(30, 0, 'PWS>PFS', 'Color', 'r');
+    text(30, 29, 'PWS<PFS', 'Color', 'b');
+elseif ~isempty(fsic(varargin, 'colorBarCorr'))
+    text(30, 0, 'Positive', 'Color', 'r');
+    text(30, 29, 'Negative', 'Color', 'b');
+end
+
+return
+
+%% Sub functions
+function draw_diamond(k1, k2, clr)
+    plot(k1 + [0, 0.5], k2 + [0.5, 0], '-', 'Color', clr);
+    plot(k1 + [-0.5, 0], k2 + [0, 0.5], '-', 'Color', clr);
+    plot(k1 + [0, 0.5], k2 + [-0.5, 0], '-', 'Color', clr);
+    plot(k1 + [-0.5, 0], k2 + [0, -0.5], '-', 'Color', clr);
+return
+
+function draw_x(k1, k2, clr)
+    plot(k1 + [-0.5, 0.5], k2 + [-0.5, 0.5], '-', 'Color', clr);
+    plot(k1 + [0.5, -0.5], k2 + [-0.5, 0.5], '-', 'Color', clr);
+return
+
+function draw_asterisk(k1, k2, clr)
+    plot(k1 + [-0.5, 0.5], k2 + [-0.5, 0.5], '-', 'Color', clr);
+    plot(k1 + [0.5, -0.5], k2 + [-0.5, 0.5], '-', 'Color', clr);
+    plot(k1 + [0, 0], k2 + [-0.5, 0.5], '-', 'Color', clr);
+    plot(k1 + [-0.5, 0.5], k2 + [0, 0], '-', 'Color', clr);
 return

@@ -6,6 +6,7 @@ import glob
 import argparse
 import numpy as np
 import matplotlib.pyplot as plt
+import scipy.stats as stats
 
 from get_qdec_info import get_qdec_info
 from aparc12 import *
@@ -16,6 +17,8 @@ DATA_DIR = "/users/cais/STUT/DATA"
 CTAB = "/users/cais/STUT/slaparc_550.ctab"
 
 SEGSTATS_SUM_WC = "aparc12_wm%dmm.segstats.txt"
+
+P_THRESH_UNC = 0.05
 
 hemis = ["lh", "rh"]
 grps = ["PFS", "PWS"]
@@ -42,9 +45,11 @@ if __name__ == "__main__":
 
     sIDs = []
     isPWS = []
+    SSI4 = []
     for (i0, t_path) in enumerate(ds):
         (t_path_0, t_sID) = os.path.split(t_path)
         sIDs.append(t_sID)
+        SSI4.append(get_qdec_info(t_sID, "SSI"))
 
         if get_qdec_info(t_sID, "diagnosis") == "PWS":
             isPWS.append(1)
@@ -130,6 +135,27 @@ if __name__ == "__main__":
     
     mean_volGM["PWS"] = np.mean(volGM[isPWS == 1], axis=0)
     ste_volGM["PWS"] = np.std(volGM[isPWS == 1], axis=0) / np.sqrt(nsg["PWS"])
+
+
+    p_tt_volGM = np.zeros([nROIs])
+    t_tt_volGM = np.zeros([nROIs])
+    for (i0, t_roi) in enumerate(roi_names):
+        (t_tt, p_tt) = stats.ttest_ind(volGM[isPWS == 1, i0], \
+                                       volGM[isPWS == 0, i0])
+
+        p_tt_volGM[i0] = p_tt
+        t_tt_volGM[i0] = t_tt
+
+        if p_tt_volGM[i0] < P_THRESH_UNC:
+            if t_tt_volGM[i0] < 0:
+                dirString = "PWS < PFS"
+            else:
+                dirString = "PWS > PFS"
+
+            print("%s: p = %f; t = %f (%s)" \
+                  % (t_roi, p_tt_volGM[i0], t_tt_volGM[i0], dirString))
+    
+    sys.exit(0)
 
     # === Visualiation === #
     for (i0, grp) in enumerate(grps):
