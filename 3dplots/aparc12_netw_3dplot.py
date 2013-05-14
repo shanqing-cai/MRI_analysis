@@ -27,6 +27,8 @@ if __name__ == "__main__":
     ap.add_argument("--opacity", dest="t_opacity", \
                     type=float, default=DEFAULT_OPACITY, \
                     help="Opacity of 3D tubes (default=%f)" % DEFAULT_OPACITY)
+    ap.add_argument("--noText", dest="bNoText", action="store_true", \
+                    help="Do not plot the 3D text")
 
     if len(sys.argv) == 1:
         ap.print_help()
@@ -37,6 +39,7 @@ if __name__ == "__main__":
     outputImgFN = args.outputImgFN
     hemi = args.hemi
     t_opacity = args.t_opacity
+    bNoText = args.bNoText
     
     if not (hemi == "lh" or hemi == "rh"):
         raise Exception, "Unexpected hemi: %s" % hemi
@@ -166,9 +169,10 @@ if __name__ == "__main__":
 
         for j in range(2):
             if labPlotted[tlink[j]] == 0:
-                mlab.text3d(t_x[j], t_y[j], t_z[j], \
-                       roi_names[tlink[j]].replace("lh_", "").replace("rh_", ""), \
-                       color=(0, 0, 0), scale=2.0)
+                if not bNoText:
+                    mlab.text3d(t_x[j], t_y[j], t_z[j], \
+                                roi_names[tlink[j]].replace("lh_", "").replace("rh_", ""), \
+                                color=(0, 0, 0), scale=2.0)
                 labPlotted[tlink[j]] = 1
 
 #        points3d(t_x, t_y, t_z)
