@@ -842,19 +842,20 @@ assert(length(sigConns_bgd) == length(sigVals_bgd));
 sigDiff_bgd_fn = sprintf('connMat_sigDiff_bgd_%s.txt', hemi);
 if isfile(sigDiff_bgd_fn)
     delete(sigDiff_bgd_fn);
-    sigDiff_bgd_f = fopen(sigDiff_bgd_fn, 'wt');
-    
-    for i1 = 1 : numel(sigConns_bgd)
-        fprintf(sigDiff_bgd_f, '%s - %s: sig=%.6f\n', ...
-                sigConns_bgd{i1}{1}, sigConns_bgd{i1}{2}, sigVals_bgd(i1));
-    end
-    
-    fclose(sigDiff_bgd_f);
-    
-    check_file(sigDiff_bgd_fn);
-    fprintf(1, 'Wrote the list of significant between-group differences to file:\n\t%s\n', ...
-            sigDiff_bgd_fn);
 end
+
+sigDiff_bgd_f = fopen(sigDiff_bgd_fn, 'wt');
+    
+for i1 = 1 : numel(sigConns_bgd)
+    fprintf(sigDiff_bgd_f, '%s - %s: sig=%.6f\n', ...
+            sigConns_bgd{i1}{1}, sigConns_bgd{i1}{2}, sigVals_bgd(i1));
+end
+    
+fclose(sigDiff_bgd_f);
+    
+check_file(sigDiff_bgd_fn);
+fprintf(1, 'Wrote the list of significant between-group differences to file:\n\t%s\n', ...
+        sigDiff_bgd_fn);
 
 
 if bRSFC
