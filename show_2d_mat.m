@@ -28,6 +28,9 @@ cm_lower = linspace(1, 0, ncm / 2 + 1);
 % cm_lower = [ones(length(cm_lower), 1), cm_lower', ones(length(cm_lower), 1)];
 cm_lower = [ones(length(cm_lower), 1), cm_lower', cm_lower'];
 cm = [cm_upper(1 : end - 1, :); cm_lower(2 : end, :)];
+
+% cm = cm(:, [2, 3, 1]);
+
 colormap(cm);
 
 sigConnections = {};
@@ -41,6 +44,7 @@ gridClr = [0.8, 0.8, 0.8];
 % -- Vertical -- %
 for x0 = xs(1) : 1.0 : xs(2)
     plot([x0, x0], [x0, ys(2)], '-', 'Color', gridClr);
+%     line([x0, x0], [x0, ys(2) + 3.0], 'Color', gridClr);
 %     plot([x0, x0], ys, '-', 'Color', gridClr);
 end
 

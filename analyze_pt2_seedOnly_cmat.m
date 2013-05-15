@@ -549,10 +549,15 @@ end
                     
 plot_sorted_2g(a_strengths, sprois, p_str, ...
                p_thresh_node_strength, 'Node strength');
-figFN = fullfile(figSaveDir, sprintf('%s.nodeStrength_bgc.eps', mfilename));
-saveas(gcf, figFN, 'eps');
-check_file(figFN);
-fprintf(1, 'INFO: Node strength between-group comparison results saved to file %s\n', figFN);
+figFN_strength = sprintf('/users/cais/STUT/figures/nodeStrength_%s.fig', hemi);
+saveas(gcf, figFN_strength);
+check_file(figFN_strength);
+fprintf(1, 'INFO: Saved node strength figure to file:\n\t%s\n', figFN_strength);
+
+% figFN = fullfile(figSaveDir, sprintf('%s.nodeStrength_bgc.eps', mfilename));
+% saveas(gcf, figFN, 'eps');
+% check_file(figFN);
+% fprintf(1, 'INFO: Node strength between-group comparison results saved to file %s\n', figFN);
 
 %% BCT (Graph theory) analysis: betweenness centrality (BC), weighted
 a_bc = struct;
@@ -577,10 +582,15 @@ end
                     
 plot_sorted_2g(a_bc, sprois, p_bc, ...
                p_thresh_node_strength, 'Node betweenness centrality (BC)');
-figFN = fullfile(figSaveDir, sprintf('%s.nodeBC.bgc.eps', mfilename));
-saveas(gcf, figFN, 'eps');
-check_file(figFN);
-fprintf(1, 'INFO: Node BC between-group comparison results saved to file %s\n', figFN);
+figFN_BC = sprintf('/users/cais/STUT/figures/nodeBC_%s.fig', hemi);
+saveas(gcf, figFN_BC);
+check_file(figFN_BC);
+fprintf(1, 'INFO: Saved node BC figure to file:\n\t%s\n', figFN_BC);
+
+% figFN = fullfile(figSaveDir, sprintf('%s.nodeBC.bgc.eps', mfilename));
+% saveas(gcf, figFN, 'eps');
+% check_file(figFN);
+% fprintf(1, 'INFO: Node BC between-group comparison results saved to file %s\n', figFN);
 
 %% BCT (Graph theory) analysis: Binary global efficiency
 efb = struct;
@@ -773,16 +783,17 @@ end
 %% --- NBS (optional) --- %%
 if ~isempty(fsic(varargin, 'NBS'))
     % -- Linear correlation with SSI4 -- %
-    nbs_nIters = varargin{fsic(varargin, 'NBS') + 1};    
-    nbs_tail = varargin{fsic(varargin, 'NBS') + 2};
+    nbs_edgeThr = varargin{fsic(varargin, 'NBS') + 1};
+    nbs_nIters = varargin{fsic(varargin, 'NBS') + 2};
+    nbs_tail = varargin{fsic(varargin, 'NBS') + 3};
     
     % -- Between group comparison -- %
 %     [nbs_pval, adj] = nbs_bct_sc(a_cmat.PWS, a_cmat.PFS, 'ranksum', -log10(0.01), ...
 %                                  nbs_nIters, nbs_tail, '--sum');
+	[nbs_pval, adj] = nbs_bct_sc(a_cmat.PWS, SSI4, 'spear', ...
+                                 -log10(nbs_edgeThr), ...
+                                 nbs_nIters, nbs_tail, '--sum'); % TESTING
 
-	[nbs_pval, adj] = nbs_bct_sc(a_cmat.PWS, SSI4, 'spear', -log10(0.01), ...
-                             nbs_nIters, nbs_tail, '--sum'); % TESTING
-                         
     % -- Write significant components to file -- % 
     sigCompCnt = 1;
     for i1 = 1 : numel(nbs_pval)
