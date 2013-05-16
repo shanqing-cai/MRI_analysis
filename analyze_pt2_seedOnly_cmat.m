@@ -294,8 +294,14 @@ end
 
 %% Load the SSI4 scores
 SSI4 = nan(1, length(sIDs.PWS));
-for i1 = 1 : numel(sIDs.PWS)
-    SSI4(i1) = ds_SSI4(sIDs.PWS{i1});
+SSI4_freq = nan(1, length(sIDs.PWS));
+for i1 = 1 : numel(sIDs.PWS)    
+    SSI4(i1) = get_qdec_measure(sIDs.PWS{i1}, 'SSI');
+    SSI4_freq(i1) = get_qdec_measure(sIDs.PWS{i1}, 'SSI_freq');
+end
+
+if ~isempty(fsic(varargin, 'SSI_freq'))
+    SSI4 = SSI4_freq;
 end
 
 %% Load the EH_comp_300 scores 
@@ -586,6 +592,36 @@ figFN_BC = sprintf('/users/cais/STUT/figures/nodeBC_%s.fig', hemi);
 saveas(gcf, figFN_BC);
 check_file(figFN_BC);
 fprintf(1, 'INFO: Saved node BC figure to file:\n\t%s\n', figFN_BC);
+
+% figFN = fullfile(figSaveDir, sprintf('%s.nodeBC.bgc.eps', mfilename));
+% saveas(gcf, figFN, 'eps');
+% check_file(figFN);
+% fprintf(1, 'INFO: Node BC between-group comparison results saved to file %s\n', figFN);
+
+%% BCT (Graph theory) analysis: clustering coefficient (cc), weighted
+a_cc = struct;
+
+for i1 = 1 : numel(grps)
+    grp = grps{i1};
+    
+    a_cc.(grp) = nan(nrois, size(a_cmat.(grp), 3));
+    
+    for i2 = 1 : size(a_cmat.(grp), 3)
+        a_cc.(grp)(:, i2) = clustering_coef_wu(a_cmat.(grp)(:, :, i2));
+    end
+end
+
+[t_cc, p_cc, r_cc_SSI4, p_cc_SSI4] = ...
+    meta_bgComp_linCorr(a_cc, 'node clust. coef.', SSI4, 'SSI4', ...
+                        p_thresh_node_strength, sprois, ...
+                        'testName', 'ttest2');
+                    
+plot_sorted_2g(a_cc, sprois, p_cc, ...
+               p_thresh_node_strength, 'Node clustering coefficient');
+figFN_CC = sprintf('/users/cais/STUT/figures/nodeCC_%s.fig', hemi);
+saveas(gcf, figFN_CC);
+check_file(figFN_CC);
+fprintf(1, 'INFO: Saved node BC figure to file:\n\t%s\n', figFN_CC);
 
 % figFN = fullfile(figSaveDir, sprintf('%s.nodeBC.bgc.eps', mfilename));
 % saveas(gcf, figFN, 'eps');
