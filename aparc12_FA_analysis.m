@@ -1,4 +1,4 @@
-function aparc12_FA_analysis(meas, xmm, dtiPrepMode)
+function aparc12_FA_analysis(meas, xmm, dtiPrepMode, varargin)
 sIDs.PWS = {'S01', 'S04', 'S06', 'S07', 'S08', 'S09', 'S10', 'S12', 'S15',  ...
             'S16', 'S17', 'S20', 'S21', 'S26', 'S28', 'S29', 'S33', 'S34', ...
             'S36', 'S37'};
@@ -119,7 +119,11 @@ for i1 = 1 : numel(grps)
     tempResp.(grp) = get_qdec_measure(sIDs.(grp), 'tempResp');
     
     if isequal(grp, 'PWS')
-        SSI4.(grp) = get_qdec_measure(sIDs.(grp), 'SSI');
+        if isempty(fsic(varargin, 'SSI_freq'))
+            SSI4.(grp) = get_qdec_measure(sIDs.(grp), 'SSI');
+        else
+            SSI4.(grp) = get_qdec_measure(sIDs.(grp), 'SSI_freq');
+        end
     end
 end
 
