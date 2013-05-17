@@ -1,11 +1,11 @@
 # Use number (hash / pound) sign for comments
 # Each line: MNI coordinates X, Y, Z, value [, shape, size] [# comments]
 # Shape: 
-#    s - sphere (size --> side length, in mm) 
+#    u - cube (size --> side length, in mm) 
 #    c - crosshair (size --> length of each axis, in mm)
-#    u - cube (size --> diameter, in mm)
+#    s - sphere (size --> diameter, in mm)
 
--45, -14, 14, 10, c, 13 # L central operculum
--43, 25, 14, 20, u, 15  # L IFG
--38, -18, 29, 30, s     # L AF (anterior portion)
--36, -52, 6, 40         # L optic radiation
+-45, -14, 14 10 c 13 # L central operculum
+-43,25,14,20,u,15  # L IFG
+-38 -18 29 30 s     # L AF (anterior portion)
+-36 -52 6 40         # L optic radiation

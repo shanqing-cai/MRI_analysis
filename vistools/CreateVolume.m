@@ -62,7 +62,7 @@ imc = imb;
 imc.vol(:) = 0;
 for i1 = 1 : length(crdInfo.val)
     t_mni = crdInfo.crd(i1, :);
-    t_idx = mni2raster(t_mni);
+    t_idx = round(mni2raster(t_mni));
     
     siz = crdInfo.size(i1) / vs; % Unit: vox
     
@@ -141,12 +141,17 @@ for i1 = 1 : numel(ctxt)
         cline = citems{1};
     end
     
-    ncom = length(strfind(cline, ','));
-    if ncom < 3 || ncom > 5
+%     ncom = length(strfind(cline, ','));
+%     if ncom < 3 || ncom > 5
+%         error('Unrecognized format in coordinates file line "%s"', cline0);
+%     end
+    
+    cline = strrep(cline, ',', ' ');
+    c_items = splitstring(cline, ' ');
+    
+    if numel(c_items) < 4 || numel(c_items) > 6
         error('Unrecognized format in coordinates file line "%s"', cline0);
     end
-    
-    c_items = splitstring(cline, ',');
         
     t_coord = [str2double(deblank(c_items{1})), ...
                str2double(deblank(c_items{2})), ...
