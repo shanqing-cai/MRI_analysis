@@ -63,14 +63,16 @@ for k1 = 1 : numel(sprois)
     for k2 = 1 : numel(sprois)
         if abs(sig_rs(k2, k1)) > abs(log10(0.005))
 %             text(k1 - cellShift, k2 - cellShift, '*', 'Color', 'w');
-            draw_asterisk(k1, k2, 'w');
+%             draw_asterisk(k1, k2, 'w');
+            draw_square(k1, k2, 'w');
+%             draw_diamond(k1, k2, 'w');
         elseif abs(sig_rs(k2, k1)) > abs(log10(0.01))
 %             text(k1 - cellShift, k2 - cellShift, 'X', 'Color', 'w');
             draw_x(k1, k2, 'w');
         elseif abs(sig_rs(k2, k1)) > abs(log10(0.05))
 %             text(k1 - cellShift, k2 - cellShift, 'O', 'Color', 'w'); 
             draw_diamond(k1, k2, 'w');
-            
+%             draw_square(k1, k2, 'w');
         end
         
         if abs(sig_rs(k2, k1)) > abs(log10(0.05))
@@ -139,7 +141,8 @@ text(lgdX + 1.5, lgdY0, 'p < 0.05');
 draw_x(lgdX, lgdY0 + 2, 'k');
 text(lgdX + 1.5, lgdY0 + 2, 'p < 0.01');
 
-draw_asterisk(lgdX, lgdY0 + 4, 'k');
+% draw_asterisk(lgdX, lgdY0 + 4, 'k');
+draw_square(lgdX, lgdY0 + 4, 'k');
 text(lgdX + 1.5, lgdY0 + 4, 'p < 0.005');
 
 rectangle('Position', [lgdX - 1, lgdY0 - 1, 8, 6], ...          
@@ -147,14 +150,16 @@ rectangle('Position', [lgdX - 1, lgdY0 - 1, 8, 6], ...
       
 
 %% --- Color bar labels --- %%
-text(30, -1.5, 'Sig-value', 'Color', 'k');
+text(30, -1.65, 'Sig-value', 'Color', 'k');
 
 if ~isempty(fsic(varargin, 'colorBarBGC'))
     text(30, 0, 'PWS>PFS', 'Color', 'r');
     text(30, 29, 'PWS<PFS', 'Color', 'b');
 elseif ~isempty(fsic(varargin, 'colorBarCorr'))
-    text(30, 0, 'Positive', 'Color', 'r');
+    text(30, -0.7, 'Positive', 'Color', 'r');
+    text(30, 0, 'correl.', 'Color', 'r');
     text(30, 29, 'Negative', 'Color', 'b');
+    text(30, 29.7, 'correl.', 'Color', 'b');
 end
 
 return
@@ -177,4 +182,15 @@ function draw_asterisk(k1, k2, clr)
     plot(k1 + [0.5, -0.5], k2 + [-0.5, 0.5], '-', 'Color', clr);
     plot(k1 + [0, 0], k2 + [-0.5, 0.5], '-', 'Color', clr);
     plot(k1 + [-0.5, 0.5], k2 + [0, 0], '-', 'Color', clr);
+return
+
+function draw_square(k1, k2, clr)
+    xl = -0.20;
+    xu = 0.25;
+    yl = -0.25;
+    yu = 0.20;
+    plot(k1 + [xl, xu], k2 + [yl, yl], '-', 'Color', clr);
+    plot(k1 + [xl, xl], k2 + [yl, yu], '-', 'Color', clr);
+    plot(k1 + [xl, xu], k2 + [yu, yu], '-', 'Color', clr);
+    plot(k1 + [xu, xu], k2 + [yl, yu], '-', 'Color', clr);
 return
