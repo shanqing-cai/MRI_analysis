@@ -38,7 +38,14 @@ if nargin > 3
 end
 
 %% Read coordinates file
-crdInfo = readCoordsFile(coordFN, DEFAULT_SHAPE, DEFAULT_SIZE);
+if isequal(coordFN(end - 3 : end), '.txt')
+    crdInfo = readCoordsFile(coordFN, DEFAULT_SHAPE, DEFAULT_SIZE);
+elseif isequal(coordFN(end - 3 : end), '.xls')
+    crdInfo = readCoordsFile_xls(coordFN, DEFAULT_SHAPE, DEFAULT_SIZE);
+else
+    error('Unrecognized file extension name: %s', crdInfo(end - 3 : end));
+end
+
 
 assert(size(crdInfo.crd, 1) == length(crdInfo.val));
 assert(size(crdInfo.crd, 1) == length(crdInfo.shape));
@@ -168,6 +175,56 @@ for i1 = 1 : numel(ctxt)
         
         if numel(c_items) > 5
             t_size = str2double(deblank(c_items{6}));
+        else
+            t_size = defSize;
+        end
+    else
+        t_shape = defShape;
+        t_size = defSize;
+    end
+    
+    crdInfo.crd = [crdInfo.crd; t_coord];
+    crdInfo.val(end + 1) = t_val;
+    crdInfo.shape{end + 1} = t_shape;
+    crdInfo.size(end + 1) = t_size;
+end
+return
+
+%% 
+function crdInfo = readCoordsFile_xls(coordFN, defShape, defSize)
+crdInfo = struct();
+crdInfo.crd = nan(0, 3);
+crdInfo.val = [];
+crdInfo.shape = {};
+crdInfo.size = [];
+
+[N, T] = xlsread(coordFN);
+
+for i1 = 1 : size(N, 1)
+    nline = N(i1, :);
+    if i1 + 1 <= size(T, 1);
+        tline = T(i1 + 1, :);
+    else
+        tline = {};
+    end
+    
+    if length(nline) < 4
+        error('Input xls file format error');
+    end
+        
+    t_coord = [nline(1), nline(2), nline(3)];
+	t_val = nline(4);
+    
+    if t_val == 0
+        fprintf(1, 'WARNING: value == 0 for coordinate [%.1f, %.1f, %.1f]', ...
+                t_coord(1), t_coord(2), t_coord(3));
+    end
+           
+	if numel(tline) > 4
+        t_shape = tline{5};        
+        
+        if numel(nline) > 5 && ~isnan(nline(6))
+            t_size = nline(6);
         else
             t_size = defSize;
         end
