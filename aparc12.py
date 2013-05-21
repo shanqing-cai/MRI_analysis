@@ -38,11 +38,11 @@ aROIs = [   ['FP',     'Prefrontal',   'N'], \
             ['pSMg',   'PPC',          'N'], \
             ['PO',     'PPC',          'S'], \
             ['SPL',    'PPC',          'N'], \
-            ['AG',     'PPC',          'N'], \
+            ['Ag',     'PPC',          'N'], \
             ['PCN',    'PPC',          'N'], \
             ['TP',     'Temporal',     'N'], \
             ['PP',     'Temporal',     'S'], \
-            ['H',      'Temporal',     'S'], \
+            ['Hg',     'Temporal',     'S'], \
             ['PT',     'Temporal',     'S'], \
             ['aSTg',   'Temporal',     'S'], \
             ['pSTg',   'Temporal',     'S'], \
@@ -53,15 +53,15 @@ aROIs = [   ['FP',     'Prefrontal',   'N'], \
             ['aMTg',   'Temporal',     'N'], \
             ['pMTg',   'Temporal',     'N'], \
             ['pITg',   'Temporal',     'N'], \
-            ['aCG',    'Cingulate',    'S'], \
-            ['midCG',  'Cingulate',    'N'], \
-            ['pCG',    'Cingulate',    'N'], \
+            ['aCGg',    'Cingulate',    'S'], \
+            ['midCGg',  'Cingulate',    'N'], \
+            ['pCGg',    'Cingulate',    'N'], \
             ['OC',     'Occipital',    'N'], \
-            ['MTO',    'Occipital',    'N'], \
-            ['ITO',    'Occipital',    'N'], \
-            ['LG',     'Occipital',    'N'], \
-            ['pPH',    'Parahippocampal',  'N'], \
-            ['aPH',    'Parahippocampal',  'N'], \
+            ['MTOg',    'Occipital',    'N'], \
+            ['ITOg',    'Occipital',    'N'], \
+            ['Lg',     'Occipital',    'N'], \
+            ['pPHg',    'Parahippocampal',  'N'], \
+            ['aPHg',    'Parahippocampal',  'N'], \
             ['SCC',    'Parahippocampal',  'N']]
 
 

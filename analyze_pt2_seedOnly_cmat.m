@@ -114,6 +114,7 @@ end
 if bReload
     a_cmat = struct;    
 
+    a_roi_ord = nan(0, length(sprois));
     for i1 = 1 : numel(grps)
         grp = grps{i1};
 
@@ -131,15 +132,30 @@ if bReload
                                   sprintf('connmats.%s.caww.pt2.%s.mat', netwName, hemi));
             end
             sdat = load(mat_fn);
+            
+            % -- Makes sure that the ROIs match -- %
+            roi_ord = [];
+            trans_h_rois = {};
+            for i3 = 1 : length(sdat.h_rois)
+                t_roi_name = translate_roi_name(deblank(sdat.h_rois(i3, :)));
+                trans_h_rois{end + 1} = t_roi_name;
+            end
+            
+            for i3 = 1 : numel(sprois)
+                roi_ord(end + 1) = fsic(trans_h_rois, sprois{i3});
+            end
+            
             if isequal(meas, 'tmn')
                 t_cmat = sdat.connmat_mean_norm;
             end
-            
+                        
             if size(t_cmat, 1) ~= nrois
                 error('Mismatch between nrois = %d and matrix size in: %s', ...
                       nrois, mat_fn);
             end
             
+            a_roi_ord = [a_roi_ord; roi_ord];
+            t_cmat = t_cmat(roi_ord, roi_ord); % -- Fix the order -- %
             a_cmat.(grp)(:, :, i2) = t_cmat;
     %         figplot(t_cmat_tmn(:), t_cmat_wtn(:), 'bo');
         end
