@@ -145,7 +145,7 @@ if bReload
         end
     end
 
-    save(dsFN, 'a_cmat');
+    save(dsFN, 'a_cmat', 'sprois');
 else
     load(dsFN);
 end
@@ -696,6 +696,7 @@ for i1 = 1 : numel(grps)
     
     mn_cmat.(grp) = mean(a_cmat.(grp), 3);
     
+    
     figure('Position', [100, 300, figSize, figSize], 'Color', 'w', ...
            'Name', ['Connecivity matrix: ', grp]);
     axis tight;    
@@ -707,6 +708,8 @@ for i1 = 1 : numel(grps)
         vis_mn_cmat.(grp) = triu(mn_cmat.(grp), 1);
     end
 end
+
+save(dsFN, 'mn_cmat', '-append');
 
 vis_mn_cmat_2g = vis_mn_cmat.PWS + vis_mn_cmat.PFS;
 
