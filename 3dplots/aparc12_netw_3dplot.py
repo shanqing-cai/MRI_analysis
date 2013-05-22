@@ -19,6 +19,8 @@ STRUCT_VOL = "/home/cais/STUT/FSDATA/fsaverage2/mri/brain.nii.gz"
 
 DEFAULT_OPACITY=1.0
 
+COMPONENT_CLRS = [(1.0, 1.0, 1.0), (0.0, 1.0, 0.0), (1.0, 1.0, 0.25)]
+
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description="Render 3D network component image based on an input component file (from analyze_pt2_seedOnly_cmat.m. The thickness of the tubes are proportional to the sig value in the component file")
     ap.add_argument("componentFile", type=str)
@@ -93,8 +95,15 @@ if __name__ == "__main__":
     compt = remove_empty_strings(compt.split('\n'))
 
     edges = []
+    compNums = [] # Component number
     sigVals = []
     for (i0, tline) in enumerate(compt):
+        if tline.count(", ") == 1:
+            compNums.append(int(tline.split(", ")[1]))
+            tline = tline.split(", ")[0]
+        else:
+            compNums.append(1)
+
         assert(tline.count(" - ") == 1)
         assert(tline.count(": sig=") == 1)
         
@@ -111,6 +120,7 @@ if __name__ == "__main__":
         sigVals.append(sigVal)
 
     assert(len(edges) == len(sigVals))
+    assert(len(edges) == len(compNums))
 
     # === Call mayavi for 3d drawing === #
     # edges = edges[:4] # DEBUG 
@@ -163,12 +173,17 @@ if __name__ == "__main__":
         t_z = np.array([roi_coords[tlink[0]][2], \
                         roi_coords[tlink[1]][2]]) - 128
 
-        mlab.plot3d(t_x, t_y, t_z, tube_radius=sigVals[i0] * 0.3, 
+        mlab.plot3d(t_x, t_y, t_z, tube_radius=sigVals[i0] * 0.3, \
+                    color=COMPONENT_CLRS[compNums[i0] - 1], \
                     opacity=t_opacity)
         # mlab.plot3d(t_x, t_y, t_z, tube_radius=1)
 
         for j in range(2):
             if labPlotted[tlink[j]] == 0:
+                mlab.points3d(t_x[j], t_y[j], t_z[j], \
+                              scale_factor=2.0, \
+                              color=COMPONENT_CLRS[compNums[i0] - 1], \
+                              opacity=t_opacity)
                 if not bNoText:
                     mlab.text3d(t_x[j], t_y[j], t_z[j], \
                                 roi_names[tlink[j]].replace("lh_", "").replace("rh_", ""), \

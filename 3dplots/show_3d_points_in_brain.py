@@ -26,6 +26,8 @@ ELEVATION = {"lh": 100, "rh": -80}
 
 DEFAULT_ANGLE = -1000.0
 
+DEFAULT_RADIUS = 3.0
+
 # MNI-to-raster coordinate transform
 def mni2raster(mniCoord):
     assert(len(mniCoord) == 3)
@@ -44,6 +46,10 @@ if __name__ == "__main__":
                     type=float, default=DEFAULT_ANGLE, help="Azimuth angle")
     ap.add_argument("--elevation", dest="arg_elevation", \
                     type=float, default=DEFAULT_ANGLE, help="Azimuth angle")
+    ap.add_argument("--radius", dest="radius", type=float, \
+                    default=DEFAULT_RADIUS, \
+                    help="Radius of the spheres (default: %.1f)" \
+                         % DEFAULT_RADIUS)
     ap.add_argument("--noBrain", dest="bNoBrain", action="store_true", \
                     help="Do not show the brain (usually used for speed)")
     ap.add_argument("--out", type=str, dest="outputImgFN", default="")
@@ -61,6 +67,8 @@ if __name__ == "__main__":
 
     arg_azimuth = args.arg_azimuth
     arg_elevation = args.arg_elevation
+
+    radius = args.radius
     
     bNoBrain = args.bNoBrain
 
@@ -99,8 +107,8 @@ if __name__ == "__main__":
 
     # === Read coordinates === #
     
-#    mlab.figure(size=(800, 600), bgcolor=(1.0, 1.0, 1.0))
-    mlab.figure(size=(800, 600), bgcolor=(0.0, 0.0, 0.0))
+    mlab.figure(size=(800, 600), bgcolor=(1.0, 1.0, 1.0))
+#    mlab.figure(size=(800, 600), bgcolor=(0.0, 0.0, 0.0))
 
     # === Plot the "axes" === #
     """
@@ -136,7 +144,7 @@ if __name__ == "__main__":
 
         print("Plotting point: [%.1f, %.1f, %.1f]" % (t_x, t_y, t_z))
 
-        mlab.points3d(t_x, t_y, t_z, scale_factor=2.0, color=ptsClrs[i0])
+        mlab.points3d(t_x, t_y, t_z, scale_factor=radius, color=ptsClrs[i0])
 #    mlab.points3d(0, 0, 0, scale_factor=10.0, colormap="Reds")
 
     #"""
@@ -145,7 +153,8 @@ if __name__ == "__main__":
                                          (sInds[1] - 128), \
                                          (sInds[2] - 128), \
                                          sImgDat)
-        mlab.pipeline.volume(src, vmin=10, vmax=1000) # vmax=500 is good?
+        mlab.pipeline.volume(src, vmin=10, vmax=2500, 
+                             color=(1.00, 1.00, 1.00)) # vmax=500 is good?
     #"""
 
     if arg_azimuth != DEFAULT_ANGLE:
