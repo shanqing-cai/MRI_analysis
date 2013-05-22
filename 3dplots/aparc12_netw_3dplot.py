@@ -19,7 +19,7 @@ STRUCT_VOL = "/home/cais/STUT/FSDATA/fsaverage2/mri/brain.nii.gz"
 
 DEFAULT_OPACITY=1.0
 
-COMPONENT_CLRS = [(1.0, 1.0, 1.0), (0.0, 1.0, 0.0), (1.0, 1.0, 0.25)]
+COMPONENT_CLRS = [(1.0, 0.75, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0)]
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description="Render 3D network component image based on an input component file (from analyze_pt2_seedOnly_cmat.m. The thickness of the tubes are proportional to the sig value in the component file")
@@ -201,15 +201,16 @@ if __name__ == "__main__":
                                      (sInds[1] - 128), \
                                      (sInds[2] - 128), \
                                      sImgDat)
-    mlab.pipeline.volume(src, vmin=10, vmax=400) # vmax=500 is good?
+    mlab.pipeline.volume(src, vmin=10, vmax=1600, 
+                         color=(1.0, 1.0, 1.0))
     #"""
               
     if hemi == "lh":
-        mlab.view(azimuth=200, elevation=100, roll=180, \
-                  focalpoint=[0, 0, 0], distance=250)
+        mlab.view(azimuth=210, elevation=100, roll=180, \
+                  focalpoint=[0, 0, 0], distance=220)
     else:
-        mlab.view(azimuth=160, elevation=-80, roll=180, \
-                  focalpoint=[0, 0, 0], distance=250)
+        mlab.view(azimuth=145, elevation=-80, roll=180, \
+                  focalpoint=[0, 0, 0], distance=220)
     
 
 
