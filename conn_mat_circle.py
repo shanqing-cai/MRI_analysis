@@ -7,19 +7,23 @@ import numpy as np
 import pylab as pl
 import scipy.io 
 from copy import deepcopy
-from mne.viz import circular_layout, plot_connectivity_circle
+from scai_mne.viz import circular_layout, plot_connectivity_circle
 
 from scai_utils import *
 from aparc12 import get_aparc12_cort_rois
 
 lobes = ["Prefrontal", "Premotor", "Insular", "Precentral", \
          "Postcentral", "PPC", "Temporal", "Cingulate"]
-lobeClrs = [(0, 0, 1), (0, 1, 1), (1, 0, 1), (1, 0, 0), \
-           (1, 1, 0), (0, 0.5, 0), (1, 0.5, 0), (0.5, 0, 0.5)]
+# lobeClrs = [(0, 0, 1), (0, 1, 1), (1, 0, 1), (1, 0, 0), \
+#            (1, 1, 0), (0, 0.5, 0), (1, 0.5, 0), (0.5, 0, 0.5)]
+lobeClrs = [(0.5, 0.5, 0.5)] * len(lobes)
+
 
 COORD_FILE = "/users/cais/STUT/FSDATA/fsaverage2/mri/aparc12_roi_coords.txt"
 
 hemis=["lh", "rh"]
+
+FIG_DIR = "/users/cais/STUT/figures"
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description="Draw connectivity circle plot")
@@ -152,8 +156,17 @@ if __name__ == "__main__":
     # con = np.random.rand(nrois, nrois) # DEBUG
     
     plot_connectivity_circle(mn_con, rois, node_angles=node_angles, 
-                             facecolor="k", textcolor="w",
+                             facecolor="w", textcolor="k",
                              node_colors=roi_clrs,
-                             vmax=vmax, 
+                             colormap="binary",
+                             vmax=vmax,
+                             fontsize=12,
                              title="Connectivity matrix: %s - %s" % (grp, hemi))
+
+    # === Save to tif file === #
+    figFN = os.path.join(FIG_DIR, "conn_mat_circle_%s_%s.png" % (grp, hemi))
+    pl.savefig(figFN, faceColor="w", format="png", dpi=200)
+    check_file(figFN)
+    print("INFO: Saved to image file: %s" % (figFN))
+
     pl.show()

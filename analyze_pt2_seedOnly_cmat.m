@@ -78,6 +78,8 @@ if bCAWW
 end
 
 sprois = get_aparc12_cortical_rois(netwName, hemi);
+
+
 nrois = length(sprois);
 
 grps = fields(sIDs);
@@ -637,7 +639,7 @@ plot_sorted_2g(a_cc, sprois, p_cc, ...
 figFN_CC = sprintf('/users/cais/STUT/figures/nodeCC_%s.fig', hemi);
 saveas(gcf, figFN_CC);
 check_file(figFN_CC);
-fprintf(1, 'INFO: Saved node BC figure to file:\n\t%s\n', figFN_CC);
+fprintf(1, 'INFO: Saved node CC figure to file:\n\t%s\n', figFN_CC);
 
 % figFN = fullfile(figSaveDir, sprintf('%s.nodeBC.bgc.eps', mfilename));
 % saveas(gcf, figFN, 'eps');
@@ -836,14 +838,14 @@ if bFold
 end
 
 %% --- NBS (optional) --- %%
-if ~isempty(fsic(varargin, 'NBS'))
+if ~isempty(fsic(varargin, '--NBS'))
     % -- Linear correlation with SSI4 -- %
-    nbs_edgeThr = varargin{fsic(varargin, 'NBS') + 1};
-    nbs_nIters = varargin{fsic(varargin, 'NBS') + 2};
-    nbs_tail = varargin{fsic(varargin, 'NBS') + 3};
+    nbs_edgeThr = varargin{fsic(varargin, '--NBS') + 1};
+    nbs_nIters = varargin{fsic(varargin, '--NBS') + 2};
+    nbs_tail = varargin{fsic(varargin, '--NBS') + 3};
     
     % -- Between group comparison -- %
-%     [nbs_pval, adj] = nbs_bct_sc(a_cmat.PWS, a_cmat.PFS, 'ranksum', -log10(0.01), ...
+%     [nbs_pval, adj] = nbs_bct_sc(a_cmat.PWS, a_cmat.PFS, 'ranksum', -log10(nbs_edgeThr), ...
 %                                  nbs_nIters, nbs_tail, '--sum');
 	[nbs_pval, adj] = nbs_bct_sc(a_cmat.PWS, SSI4, 'spear', ...
                                  -log10(nbs_edgeThr), ...
@@ -857,7 +859,7 @@ if ~isempty(fsic(varargin, 'NBS'))
             [t_nEdges, t_nNodes] = ...
                 write_netw_component_txt(adj, i1, sprois, p_SSI4_spr, txtfn);
             
-            check_file(txtfn)
+            check_file(txtfn);
             fprintf(1, 'INFO: corrSSI4: significant component #%d (nEdges=%d; nNodes=%d) saved to ASCII file:\n\t%s\n', ...
                    sigCompCnt,  t_nEdges, t_nNodes, txtfn);
             
