@@ -252,15 +252,16 @@ def tract_seg_sub(args, step):
         for (k0, coord) in enumerate(coords):
             print("Step %s: processing voxel #%d of %d..." \
                   % (step, k0, len(coords)))
-
+            
             voxDir = os.path.join(roiDir, \
                                   '%d_%d_%d'%(coord[0], coord[1], coord[2]))
             check_dir(voxDir)
             masked_mean_fn = os.path.join(voxDir, 'masked_mean.txt')
             max_roi_fn = os.path.join(voxDir, 'max_roi.txt')
 
-            if (not os.path.isfile(masked_mean_fn)) or \
-               (not os.path.isfile(max_roi_fn)):
+            if True:
+            #if (not os.path.isfile(masked_mean_fn)) or \
+            #   (not os.path.isfile(max_roi_fn)):
                 maskedVals = [float('nan')] * nROIs
 
                 fdtPathsFN = os.path.join(voxDir, 'fdt_paths.nii.gz')
@@ -320,7 +321,13 @@ def tract_seg_sub(args, step):
         add_cmd = 'fslmaths '
         add_reg_cmd = 'fslmaths '
 
-        for coord in coords:
+        a_region_means = np.zeros([len(coords), len(regions)])
+        add_regMean_cmd = ["fslmaths "] * len(regions)
+        
+        #print(add_regMean_cmd[6])
+        #sys.exit(0)
+
+        for (j0, coord) in enumerate(coords):
             voxDir = os.path.join(roiDir, \
                                   '%d_%d_%d'%(coord[0], coord[1], coord[2]))
             check_dir(voxDir)
@@ -338,8 +345,8 @@ def tract_seg_sub(args, step):
             mean_t = masked_mean_t.split('\n');
             mean_t = remove_empty_strings(mean_t)
 
-            if len(mean_t) != len(allROIs):
-                raise Exception, "Number of lines in file %s (%d) doesn't match the total number of aparc12 ROIs (%d)" \
+            if len(mean_t) > len(allROIs):
+                raise Exception, "Number of lines in file %s (%d) is greater than the total number of aparc12 ROIs (%d)" \
                                  % (masked_mean_fn, len(mean_t), len(allROIs))
 
             t_roiNames = []
@@ -362,6 +369,9 @@ def tract_seg_sub(args, step):
                     t_roiNames.pop(idx)
                     t_roiNums.pop(idx)
                     t_maskedMeans.pop(idx)
+
+            #print(t_maskedMeans)
+            #sys.exit(0)
     
             # ROI labeling
             max_roi_num = t_roiNums[t_maskedMeans.index(np.max(t_maskedMeans))]
@@ -402,13 +412,19 @@ def tract_seg_sub(args, step):
                 regions[t_region_means.index(np.max(t_region_means))]
     
             print('\tmax region = %s, num = %d' \
-                  % (max_region_name, max_region_num))
+                  % (max_region_name, max_region_num))         
+            
+            #print(t_region_means)
+            #print(a_region_means)
+            #print(add_cmd)
+            #sys.exit(0)
     
             voxImgFN_reg = os.path.join(roiDir, \
                                         'vox_%d_%d_%d_reg.diff.nii.gz'\
                                         %(coord[0], coord[1], coord[2]))
             mult_reg_cmd = 'fslmaths %s -mul %d %s'\
                            %(voxImgFN, max_region_num, voxImgFN_reg)
+
             delete_file_if_exists(voxImgFN_reg)
             saydo(mult_reg_cmd)
             check_file(voxImgFN_reg)
@@ -417,6 +433,29 @@ def tract_seg_sub(args, step):
                 add_reg_cmd += voxImgFN_reg + ' '
             else:
                 add_reg_cmd += '-add ' + voxImgFN_reg + ' '
+
+            # Regional means
+            for k1 in range(len(regions)):
+                a_region_means[j0][k1] = t_region_means[k1]
+                vox_regMean_fn = os.path.join(roiDir, \
+                                 "vox_%d_%d_%d_regMean_%d.diff.nii.gz" \
+                                 % (coord[0], coord[1], coord[2], k1))
+                #print(vox_regMean_fn)
+
+                mult_regMean_cmd = "fslmaths %s -mul %f %s" \
+                           % (voxImgFN, t_region_means[k1], vox_regMean_fn)
+                saydo(mult_regMean_cmd)
+                check_file(vox_regMean_fn)
+
+                #if add_regMean_cmd[k1].count(' ') == 1:
+                #    add_regMean_cmd[k1] += vox_regMean_fn + ' '
+                #else:
+                #    add_regMean_cmd[k1] += '-add ' + vox_regMean_fn + ' '
+                
+            #if j0 == 1:
+            #    print(add_regMean_cmd[0])
+            #    print(add_regMean_cmd[6])
+            #    sys.exit(0)
 
         tract_seg_fn = os.path.join(roiDir, 'tract_parc.nii.gz')
         tract_region_seg_fn = os.path.join(roiDir, 'tract_regionParc.nii.gz')
@@ -435,14 +474,31 @@ def tract_seg_sub(args, step):
         saydo(add_cmd)
         check_file(tract_region_seg_fn)
 
+        print("\nINFO: lobe-by-lobe segmentation file saved at\n\t%s" \
+              % tract_region_seg_fn)
+
+        for k1 in range(len(regions)):
+            tract_region_mean_fn = \
+                os.path.join(roiDir, "tract_regionMean_%d.nii.gz" % k1)
+
+            add_cmd_regMean = 'glob_fsl_add.py "%s" %s -v --cleanup' \
+                  % (os.path.join(roiDir, \
+                                  "vox_*_*_*_regMean_%d.diff.nii.gz" % k1), \
+                     tract_region_mean_fn)
+            saydo(add_cmd_regMean)
+            check_file(tract_region_mean_fn)
+            
+            print("\nINFO: lobe-by-lobe mean tract density saved at\n\t%s" \
+                  % tract_region_mean_fn)
+            
+
         #delete_file_if_exists(tract_region_seg_fn)
         #saydo(add_reg_cmd)
         #check_file(tract_region_seg_fn)
 
         #print("\nINFO: ROI-by-ROI segmentation file saved at\n\t%s" \
         #      % tract_seg_fn)
-        print("\nINFO: lobe-by-lobe segmentation file saved at\n\t%s" \
-              % tract_region_seg_fn)
+        
     elif step == "zip":
         tract_region_seg_fn = os.path.join(roiDir, 'tract_regionParc.nii.gz')
         
