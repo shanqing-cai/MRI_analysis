@@ -19,7 +19,6 @@ DESIGN_DIR = "/users/cais/STUT/analysis/design"
 MATLAB_BIN = '/software/matlab2009a/bin/matlab'
 con_01 = '/users/cais/STUT/analysis/design/con_01'
 
-
 regions = ['Prefrontal', 'Premotor', 'Precentral', 'Postcentral', \
            'PPC', 'Occipital', 'Temporal']
 
@@ -28,6 +27,8 @@ if __name__ == "__main__":
     ap.add_argument("scSeed", help="Subcortical seed")
     ap.add_argument("--ccstop", dest="bCCStop", \
                     action="store_true", help="Use corpus callosum stop mask")
+    ap.add_argument("--roi", dest="roi", type=str, default="", \
+                    help="Focus on specific cortical ROI (default: False, i.e., use all %d regions" % len(regions))
     ap.add_argument("--rerun", dest="bRerun", \
                     action="store_true", help="Rerun time-consuming steps")
     
@@ -41,6 +42,12 @@ if __name__ == "__main__":
     scSeed = args.scSeed
     bCCStop = args.bCCStop
     bRerun = args.bRerun
+    roi = args.roi
+
+    if roi == "":
+        a_regions = regions
+    else:
+        a_regions = [roi]
 
     assert(scSeed.count(".") == 1)
     hemi = scSeed.split(".")[0]
@@ -67,7 +74,8 @@ if __name__ == "__main__":
 
     sIDs = np.array(sIDs)
     bPWS = np.array(bPWS)
-    
+
+
     # === Locate the d2a files of each subject  === #
     d2as = []
     FAimgs = []
@@ -94,21 +102,26 @@ if __name__ == "__main__":
         scDirName = scSeed
         
     regMean_ts = []
-    for i0 in range(len(regions)):
+    for i0 in range(len(a_regions)):
         regMean_ts.append([])
 
     for (i0, t_sID) in enumerate(sIDs):
         sDir = os.path.join(tractSegDir, t_sID, scDirName)
         check_dir(sDir)
 
-        for (i1, t_region) in enumerate(regions):
-            regMean_d = os.path.join(sDir, \
-                                     "tract_regionMean_%d.nii.gz" % (i1))
+        for (i1, t_region) in enumerate(a_regions):
+            if roi == "":
+                regMean_d = os.path.join(sDir, \
+                                         "tract_regionMean_%d.nii.gz" % (i1))
+                regMean_t = os.path.join(sDir, \
+                                     "tract_regionMean_%d.MNI152.nii.gz" % (i1))
+            else:
+                regMean_d = os.path.join(sDir, "aparc12", 
+                                         "%s.nii.gz" % roi)
+                regMean_t = os.path.join(sDir, "aparc12",
+                                     "%s.MNI152.nii.gz" % roi)
             check_file(regMean_d)
             
-            regMean_t = os.path.join(sDir, \
-                                     "tract_regionMean_%d.MNI152.nii.gz" % (i1))
-
             if bRerun or not os.path.isfile(regMean_t):
                 warpCmd = 'applywarp --ref=' + MNI152_TEMPLATE_FN \
                           + ' --in=' + regMean_d \
@@ -119,7 +132,7 @@ if __name__ == "__main__":
 
             check_file(regMean_t)
             regMean_ts[i1].append(regMean_t)
-
+    
     # === Concatenate subject files into 4D files === 
     # === in prep for group-level analysis === #
     check_dir(L2_DIR)
@@ -127,8 +140,19 @@ if __name__ == "__main__":
     L2SeedDir = os.path.join(L2_DIR, scDirName)
     check_dir(L2SeedDir, bCreate=True)
 
-    for (i0, t_region) in enumerate(regions):
-        regMean_4ds.append(os.path.join(L2SeedDir, "merged_%d.nii.gz" % i0))
+    for (i0, t_region) in enumerate(a_regions):
+        if roi == "":
+            L2SeedTargDir = os.path.join(L2SeedDir, "%d_%s" % (i0, t_region))
+        else:
+            L2SeedTargDir = os.path.join(L2SeedDir, t_region)
+        check_dir(L2SeedTargDir, bCreate=True)
+            
+        if roi == "":
+            regMean_4ds.append(os.path.join(L2SeedTargDir, \
+                                            "merged_%d.nii.gz" % i0))
+        else:
+            regMean_4ds.append(os.path.join(L2SeedTargDir, \
+                                            "merged_%s.nii.gz" % roi))
         mergeCmd= "fslmerge -t %s " % regMean_4ds[-1]
 
         for (i1, t_fn) in enumerate(regMean_ts[i0]):
@@ -168,8 +192,12 @@ if __name__ == "__main__":
     # === Perform between-group comparisons === #
     check_file(con_01)
     
-    for (i0, t_region) in enumerate(regions):
-        t_con_01_dir = os.path.join(L2SeedDir, "bgc_%d" % i0)
+    for (i0, t_region) in enumerate(a_regions):
+        if roi == "":
+            t_con_01_dir = os.path.join(L2SeedTargDir, "bgc")
+        else:
+            t_con_01_dir = os.path.join(L2SeedTargDir, "bgc")
+
         fitCmd = 'mri_glmfit --y ' + regMean_4ds[i0] \
                  + ' --X ' + X_mat \
                  + ' --C ' + con_01 \
