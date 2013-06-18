@@ -31,6 +31,10 @@ if __name__ == "__main__":
                     help="Focus on specific cortical ROI (default: False, i.e., use all %d regions" % len(regions))
     ap.add_argument("--rerun", dest="bRerun", \
                     action="store_true", help="Rerun time-consuming steps")
+    ap.add_argument("--mask", dest="mask", type=str, default="", \
+                    help="Mask for mri_glmfit")
+    ap.add_argument("--fwhm", dest="fwhm", type=float, default=0, \
+                    help="FWHM of smoothing for mri_glmfit")
     
     # === Process input arguments === #
     if len(sys.argv) == 1:
@@ -43,6 +47,8 @@ if __name__ == "__main__":
     bCCStop = args.bCCStop
     bRerun = args.bRerun
     roi = args.roi
+    mask = args.mask
+    fwhm = args.fwhm
 
     if roi == "":
         a_regions = regions
@@ -53,6 +59,11 @@ if __name__ == "__main__":
     hemi = scSeed.split(".")[0]
     cSeed = scSeed.split(".")[1]
 
+    if mask != "":
+        check_file(mask)
+
+    if fwhm != 0:
+        assert(fwhm > 0)
 
     # === Find subject IDs and group labels === #
     check_dir(tractSegDir)
@@ -137,6 +148,11 @@ if __name__ == "__main__":
     # === in prep for group-level analysis === #
     check_dir(L2_DIR)
     regMean_4ds = []
+    regMean_4ds_PWS = []
+    regMean_4ds_PFS = []
+    mean_PWS = []
+    mean_PFS = []
+    mainMask_PFS = []
     L2SeedDir = os.path.join(L2_DIR, scDirName)
     check_dir(L2SeedDir, bCreate=True)
 
@@ -150,17 +166,114 @@ if __name__ == "__main__":
         if roi == "":
             regMean_4ds.append(os.path.join(L2SeedTargDir, \
                                             "merged_%d.nii.gz" % i0))
+            regMean_4ds_PWS.append(os.path.join(L2SeedTargDir, \
+                                            "merged_%d_PWS.nii.gz" % i0))
+            regMean_4ds_PFS.append(os.path.join(L2SeedTargDir, \
+                                            "merged_%d_PFS.nii.gz" % i0))
         else:
             regMean_4ds.append(os.path.join(L2SeedTargDir, \
                                             "merged_%s.nii.gz" % roi))
-        mergeCmd= "fslmerge -t %s " % regMean_4ds[-1]
+            regMean_4ds_PWS.append(os.path.join(L2SeedTargDir, \
+                                            "merged_%s_PWS.nii.gz" % roi))
+            regMean_4ds_PFS.append(os.path.join(L2SeedTargDir, \
+                                            "merged_%s_PFS.nii.gz" % roi))
+
+        mergeCmd = "fslmerge -t %s " % regMean_4ds[-1]
+        mergeCmd_PWS = "fslmerge -t %s " % regMean_4ds_PWS[-1]
+        mergeCmd_PFS = "fslmerge -t %s " % regMean_4ds_PFS[-1]
 
         for (i1, t_fn) in enumerate(regMean_ts[i0]):
             mergeCmd += "%s " % t_fn
+            if bPWS[i1] == 1:
+                mergeCmd_PWS += "%s " % t_fn
+            else:
+                mergeCmd_PFS += "%s " % t_fn
         
-        if bRerun or not os.path.isfile(regMean_4ds[-1]):
+        mean_PWS.append(os.path.join(L2SeedTargDir, \
+                                     "merged_%s_mean_PWS.nii.gz" % roi))
+        mean_PFS.append(os.path.join(L2SeedTargDir, \
+                                     "merged_%s_mean_PFS.nii.gz" % roi))
+
+        mainMask_PFS.append(os.path.join(L2SeedTargDir, \
+                                     "mainMask_%s_PFS.nii.gz" % roi))
+        if bRerun or (not os.path.isfile(regMean_4ds[-1]) \
+                      or not os.path.isfile(regMean_4ds_PWS[-1]) \
+                      or not os.path.isfile(regMean_4ds_PFS[-1]) \
+                      or not os.path.isfile(mean_PWS[-1]) \
+                      or not os.path.isfile(mean_PFS[-1]) \
+                      or not os.path.isfile(mainMask_PFS[-1])):
             saydo(mergeCmd)
             check_file(regMean_4ds[-1])
+
+            saydo(mergeCmd_PWS)
+            check_file(regMean_4ds_PWS[-1])
+
+            saydo(mergeCmd_PFS)
+            check_file(regMean_4ds_PFS[-1])
+            
+            # Calculate the mean:
+            meanCmd = "fslmaths %s -Tmean %s" % \
+                      (regMean_4ds_PWS[-1], mean_PWS[-1])
+            saydo(meanCmd)
+            check_file(mean_PWS[-1])
+
+            meanCmd = "fslmaths %s -Tmean %s" % \
+                      (regMean_4ds_PFS[-1], mean_PFS[-1])
+            saydo(meanCmd)
+            check_file(mean_PFS[-1])
+
+            # Get the 99 percentile of mean_PFS
+            (so, se) = cmd_stdout("fslstats %s -P 99" % (mean_PFS[-1]))
+            assert(len(se) == 0)
+            p99 = float(so.split(' ')[0])
+            print("INFO: PFS 99 percentil = %f" % p99)
+
+            # Generate the main mask
+            binCmd = "mri_binarize --i %s --min %f --binval 1.0 --o %s" \
+                     % (mean_PFS[-1], p99 / 2.0, mainMask_PFS[-1])
+            saydo(binCmd)
+            check_file(mainMask_PFS[-1])
+            
+        # == Prepare for stats on the main-masked mean == #
+        (so, se) = cmd_stdout("fslstats -t %s -k %s -M" % \
+                              (regMean_4ds[-1], mainMask_PFS[-1]))
+        assert(len(se) == 0)
+        mainMaskVals = np.zeros(len(bPWS))
+        so = remove_empty_strings(so.replace("\n", " ").split(" "))
+        for (i1, s) in enumerate(so):
+            mainMaskVals[i1] = float(s)
+
+        v_PWS = mainMaskVals[np.nonzero(bPWS == 1)]
+        v_PFS = mainMaskVals[np.nonzero(bPWS == 0)]
+
+        # == Run stats == #
+        import scipy.stats as stats
+        (tt_t, tt_p) = stats.ttest_ind(v_PWS, v_PFS)
+        (rs_z, rs_p) = stats.ranksums(v_PWS, v_PFS)
+
+        stfn = os.path.join(L2SeedTargDir, "stats.txt")
+        stf = open(stfn, "wt")
+        stf.write("Main-masked values: \n")
+        stf.write("PWS: mean=%f; ste=%f\n" \
+                  % (np.mean(v_PWS), np.std(v_PWS) / np.sqrt(len(v_PWS))))
+        for (i1, v) in enumerate(v_PWS):
+            stf.write("%f " % v)
+        stf.write("\n")
+
+        stf.write("PFS: mean=%f; ste=%f\n" \
+                  % (np.mean(v_PFS), np.std(v_PFS) / np.sqrt(len(v_PFS))))
+        for (i1, v) in enumerate(v_PFS):
+            stf.write("%f " % v)
+        stf.write("\n\n")
+        
+        stf.write("t-test:\n\tt=%f; p=%f\n" % (tt_t, tt_p))
+        stf.write("ranksum:\n\tZ=%f; p=%f\n" % (rs_z, rs_p))
+        
+        stf.close()
+
+        check_file(stfn)
+        print("INFO: statistical results written to file:\n\t%s" % stfn)
+        
 
     # === Generate the design matrix  === #
     X_line = 'X = ['
@@ -198,10 +311,16 @@ if __name__ == "__main__":
         else:
             t_con_01_dir = os.path.join(L2SeedTargDir, "bgc")
 
-        fitCmd = 'mri_glmfit --y ' + regMean_4ds[i0] \
+        fitCmd = 'mri_glmfit --no-prune --y ' + regMean_4ds[i0] \
                  + ' --X ' + X_mat \
                  + ' --C ' + con_01 \
                  + ' --glmdir ' + t_con_01_dir
+
+        if mask != "":
+            fitCmd += " --mask %s" % mask
+
+        if fwhm > 0:
+            fitCmd += " --fwhm %f" % fwhm
 
         saydo(fitCmd)
         check_dir(t_con_01_dir)
@@ -209,4 +328,12 @@ if __name__ == "__main__":
         sig_fn = os.path.join(t_con_01_dir, "con_01", "sig.mgh")
         check_file(sig_fn)
     
+        # == Convert the sig file to nii.gz == #
+        sig_ngz = sig_fn.replace(".mgh", ".nii.gz")
+        cvtCmd = "mri_convert %s %s" % \
+                 (sig_fn, sig_ngz)
+        saydo(cvtCmd)
+        check_file(sig_ngz)
+
+        
         
