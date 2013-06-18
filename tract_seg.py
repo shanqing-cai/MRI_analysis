@@ -93,7 +93,7 @@ def tract_seg_sub(args, step, roiName=""):
         raise Exception, "Unrecognized step: %s" % step
 
     if step == "roiconn":
-        if allROIs.count(roiName) == 0:
+        if (not roiName == "mask") and allROIs.count(roiName) == 0:
             raise Exception, \
                   "Under step == %s, found unrecognized ROI name %s" \
                   % (step, roiName)
@@ -525,31 +525,35 @@ def tract_seg_sub(args, step, roiName=""):
             #print("Step %s: processing voxel #%d of %d..." \
             #      % (step, k0, len(coords)))
             
-            voxDir = os.path.join(roiDir, \
+            if roiName == "mask": # Create mask volumes 
+                imgdat[coord[0], coord[1], coord[2]] = 1.0
+            else:
+                voxDir = os.path.join(roiDir, \
                                   '%d_%d_%d'%(coord[0], coord[1], coord[2]))
-            check_dir(voxDir)
-            masked_mean_fn = os.path.join(voxDir, 'masked_mean.txt')
+                check_dir(voxDir)
+                masked_mean_fn = os.path.join(voxDir, 'masked_mean.txt')
 
-            mmtxt = read_text_file(masked_mean_fn)
-            # == Locate the ROI line and get the masked mean == #
-            bROIFound = False
-            for (j0, t_line) in enumerate(mmtxt):
-                if len(mmtxt) == 0:
-                    continue
-                t_items = t_line.split(" ")
-                if len(t_items) != 3:
-                    continue
+                mmtxt = read_text_file(masked_mean_fn)
+                # == Locate the ROI line and get the masked mean == #
+                bROIFound = False
+                for (j0, t_line) in enumerate(mmtxt):
+                    if len(mmtxt) == 0:
+                        continue
+                    t_items = t_line.split(" ")
+                    if len(t_items) != 3:
+                        continue
                 
-                if t_items[0] == roiName:
-                    bROIFound = True
-                    break
+                    if t_items[0] == roiName:
+                        bROIFound = True
+                        break
             
-            if not bROIFound:
-                raise Exception, "Failed to find entry for ROI %s in file %s" \
-                      % (roiName, masked_mean_fn)
-            t_maskedMean = float(t_items[-1])
+                if not bROIFound:
+                    raise Exception, \
+                          "Failed to find entry for ROI %s in file %s" \
+                          % (roiName, masked_mean_fn)
+                t_maskedMean = float(t_items[-1])
 
-            imgdat[coord[0], coord[1], coord[2]] = t_maskedMean
+                imgdat[coord[0], coord[1], coord[2]] = t_maskedMean
             #print("Processing voxel %d/%d: Assigning value [%d, %d, %d] --> %s" \
             #      % (k0, len(coords), coord[0], coord[1], coord[2], \
             #         imgdat[coord[0], coord[1], coord[2]]))
@@ -611,7 +615,7 @@ if __name__ == "__main__":
     ap.add_argument("--ccStop", dest="b_ccStop", action="store_true", \
                     help="Use corpus callosum (CC) as a stop mask")
     ap.add_argument("--roi", dest="roi", type=str, default="", \
-                    help="ROI name (for use with step==roiconn")
+                    help="ROI name (for use with step==roiconn); roi = mask: for generating binary masks of the entire subcortical seed")
     
     if len(sys.argv) == 1:
         ap.print_help()
