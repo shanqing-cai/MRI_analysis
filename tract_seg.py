@@ -8,6 +8,8 @@ import argparse
 from subprocess import Popen, PIPE
 import numpy as np
 
+import nibabel as nib
+
 from aparc12_probtrackx_2 import get_roi_num
 from aparc12 import get_aparc12_cort_rois
 from scai_utils import *
@@ -81,14 +83,20 @@ allROIs = get_aparc12_cort_rois(lobe="all", bSpeech=False)
 
 
 # ==== sub_routine ==== #
-def tract_seg_sub(args, step):
+def tract_seg_sub(args, step, roiName=""):
     # Check input arguments
     sID = args.sID
     seedROI = args.seedROI
     b_ccStop = args.b_ccStop
 
-    if ALL_STEPS.count(step) == 0:
+    if ALL_STEPS.count(step) == 0 and step != "roiconn":
         raise Exception, "Unrecognized step: %s" % step
+
+    if step == "roiconn":
+        if allROIs.count(roiName) == 0:
+            raise Exception, \
+                  "Under step == %s, found unrecognized ROI name %s" \
+                  % (step, roiName)
     
     # If the ccMask is needed, locate or generate the ccMask:
     if b_ccStop:
@@ -498,6 +506,65 @@ def tract_seg_sub(args, step):
 
         #print("\nINFO: ROI-by-ROI segmentation file saved at\n\t%s" \
         #      % tract_seg_fn)
+
+    elif step == "roiconn":
+        print("INFO: step = roiconn; roiName = %s" % roiName)
+        
+        voxMaskDir = os.path.join(roiDir, "vox")
+        check_dir(voxMaskDir)
+
+        voxMask0 = os.path.join(voxMaskDir, \
+                                "vox_%d_%d_%d.diff.nii.gz" \
+                                % (coords[0][0], coords[0][1], coords[0][2]))
+        check_file(voxMask0)
+
+        img = nib.load(voxMask0)
+        imgdat = img.get_data()
+
+        for (k0, coord) in enumerate(coords):
+            #print("Step %s: processing voxel #%d of %d..." \
+            #      % (step, k0, len(coords)))
+            
+            voxDir = os.path.join(roiDir, \
+                                  '%d_%d_%d'%(coord[0], coord[1], coord[2]))
+            check_dir(voxDir)
+            masked_mean_fn = os.path.join(voxDir, 'masked_mean.txt')
+
+            mmtxt = read_text_file(masked_mean_fn)
+            # == Locate the ROI line and get the masked mean == #
+            bROIFound = False
+            for (j0, t_line) in enumerate(mmtxt):
+                if len(mmtxt) == 0:
+                    continue
+                t_items = t_line.split(" ")
+                if len(t_items) != 3:
+                    continue
+                
+                if t_items[0] == roiName:
+                    bROIFound = True
+                    break
+            
+            if not bROIFound:
+                raise Exception, "Failed to find entry for ROI %s in file %s" \
+                      % (roiName, masked_mean_fn)
+            t_maskedMean = float(t_items[-1])
+
+            imgdat[coord[0], coord[1], coord[2]] = t_maskedMean
+            #print("Processing voxel %d/%d: Assigning value [%d, %d, %d] --> %s" \
+            #      % (k0, len(coords), coord[0], coord[1], coord[2], \
+            #         imgdat[coord[0], coord[1], coord[2]]))
+
+        # Write to output file: 
+        roiconn_dir = os.path.join(roiDir, "aparc12")
+        check_dir(roiconn_dir, bCreate=True)
+
+        roiConnFN = os.path.join(roiconn_dir, "%s.nii.gz" % roiName)
+        imgout = nib.nifti1.Nifti1Image(imgdat, img.get_affine(), \
+                                        header=img.get_header())
+        imgout.to_filename(roiConnFN)
+        check_file(roiConnFN)
+
+        print("INFO: ROI connectivity file saved at: %s" % (roiConnFN))
         
     elif step == "zip":
         tract_region_seg_fn = os.path.join(roiDir, 'tract_regionParc.nii.gz')
@@ -540,21 +607,32 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser(description="Parcellation of the subcortical ROIs based on probabilistic tractograpy\nAuthor: Shanqing Cai (shanqing.cai@gmail.com) \nDate: 2013-02-27")
     ap.add_argument("sID", help="Subject ID")
     ap.add_argument("seedROI", help="seedROI")
-    ap.add_argument("step", help="Step {track, stats, seg, zip or all {all=tract+stats+seg+zip}}")
+    ap.add_argument("step", help="Step {track, stats, seg, zip, roiconn or all {all=tract+stats+seg+zip}}")
     ap.add_argument("--ccStop", dest="b_ccStop", action="store_true", \
-                        help="Use corpus callosum (CC) as a stop mask")
+                    help="Use corpus callosum (CC) as a stop mask")
+    ap.add_argument("--roi", dest="roi", type=str, default="", \
+                    help="ROI name (for use with step==roiconn")
     
     if len(sys.argv) == 1:
         ap.print_help()
         sys.exit(0)
 
+    # === Parse input argument === #
     args = ap.parse_args()
-    
     step = args.step
+    
+    if step == "roiconn":
+        roi = args.roi
+        assert(roi != "")
 
+    # === === #
     print("INFO: step = %s" % step)
     if step == "all":
         for (i0, t_step) in enumerate(ALL_STEPS):
             tract_seg_sub(args, t_step)
     else:
-        tract_seg_sub(args, step)
+        if step != "roiconn":
+            tract_seg_sub(args, step)
+        else:
+            tract_seg_sub(args, step, roiName=roi)
+        
