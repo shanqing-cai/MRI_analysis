@@ -79,6 +79,9 @@ for (i0, region) in enumerate(regions):
 
 allROIs = get_aparc12_cort_rois(lobe="all", bSpeech=False)
 
+altROINames = {"orig": ["Ag",  "Hg", "Lg", "ITOg", "MTOg"], \
+               "alt": ["AG", "H", "LG", "ITO", "MTO"]}
+
 # ==== ~CONFIG: Construct the parcellation profile ==== #
 
 
@@ -510,6 +513,12 @@ def tract_seg_sub(args, step, roiName=""):
     elif step == "roiconn":
         print("INFO: step = roiconn; roiName = %s" % roiName)
         
+        if altROINames["orig"].count(roiName) == 1:
+            altROIName = altROINames["alt"][altROINames["orig"].index(roiName)]
+            print("INFO: altROIName = %s" % altROIName)
+        else:
+            altROIName = ""
+        
         voxMaskDir = os.path.join(roiDir, "vox")
         check_dir(voxMaskDir)
 
@@ -543,7 +552,8 @@ def tract_seg_sub(args, step, roiName=""):
                     if len(t_items) != 3:
                         continue
                 
-                    if t_items[0] == roiName:
+                    if t_items[0] == roiName \
+                        or (altROIName != "" and t_items[0] == altROIName):
                         bROIFound = True
                         break
             
