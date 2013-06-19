@@ -12,6 +12,7 @@ tractSegDir = "/users/cais/STUT/analysis/tractseg_aparc12/"
 L2_DIR = "/users/cais/STUT/analysis/tract_subcort_conn"
 
 allROIs = get_aparc12_cort_rois(lobe="all", bSpeech=False)
+allROIs.sort()
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description="Batch run of tractography- and aparc12-based subcorticla-cortical connectivity analysis, by calling tract_seg.py and tract_subcort_conn.py")

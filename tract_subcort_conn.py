@@ -22,6 +22,8 @@ con_01 = '/users/cais/STUT/analysis/design/con_01'
 regions = ['Prefrontal', 'Premotor', 'Precentral', 'Postcentral', \
            'PPC', 'Occipital', 'Temporal']
 
+mainMaskRatio = 0.75
+
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description="Group-level analysis of subcortical-cortical DTT connectivity")
     ap.add_argument("scSeed", help="Subcortical seed")
@@ -35,6 +37,10 @@ if __name__ == "__main__":
                     help="Mask for mri_glmfit")
     ap.add_argument("--fwhm", dest="fwhm", type=float, default=0, \
                     help="FWHM of smoothing for mri_glmfit")
+    ap.add_argument("--mainMaskRatio", dest="mainMaskRatio", type=float, \
+                    default=mainMaskRatio, \
+                    help="Ratio for generating the main PFS mask (default=%f)" \
+                         % mainMaskRatio)
     
     # === Process input arguments === #
     if len(sys.argv) == 1:
@@ -49,6 +55,9 @@ if __name__ == "__main__":
     roi = args.roi
     mask = args.mask
     fwhm = args.fwhm
+    mainMaskRatio = args.mainMaskRatio
+
+    assert(mainMaskRatio >= 0.0 and mainMaskRatio < 1.0)
 
     if roi == "":
         a_regions = regions
@@ -195,7 +204,8 @@ if __name__ == "__main__":
                                      "merged_%s_mean_PFS.nii.gz" % roi))
 
         mainMask_PFS.append(os.path.join(L2SeedTargDir, \
-                                     "mainMask_%s_PFS.nii.gz" % roi))
+                                     "mainMask_%s_PFS_%.2f.nii.gz" \
+                                     % (roi, mainMaskRatio)))
         if bRerun or (not os.path.isfile(regMean_4ds[-1]) \
                       or not os.path.isfile(regMean_4ds_PWS[-1]) \
                       or not os.path.isfile(regMean_4ds_PFS[-1]) \
@@ -226,18 +236,18 @@ if __name__ == "__main__":
             (so, se) = cmd_stdout("fslstats %s -P 99" % (mean_PFS[-1]))
             assert(len(se) == 0)
             p99 = float(so.split(' ')[0])
-            print("INFO: PFS 99 percentil = %f" % p99)
+            print("INFO: PFS 99 percentile = %f" % p99)
 
             # Generate the main mask
             binCmd = "mri_binarize --i %s --min %f --binval 1.0 --o %s" \
-                     % (mean_PFS[-1], p99 / 2.0, mainMask_PFS[-1])
+                     % (mean_PFS[-1], p99 * mainMaskRatio, mainMask_PFS[-1])
             saydo(binCmd)
             check_file(mainMask_PFS[-1])
             
         # == Prepare for stats on the main-masked mean == #
         (so, se) = cmd_stdout("fslstats -t %s -k %s -M" % \
                               (regMean_4ds[-1], mainMask_PFS[-1]))
-        assert(len(se) == 0)
+        #assert(len(se) == 0)
         mainMaskVals = np.zeros(len(bPWS))
         so = remove_empty_strings(so.replace("\n", " ").split(" "))
         for (i1, s) in enumerate(so):
@@ -251,7 +261,7 @@ if __name__ == "__main__":
         (tt_t, tt_p) = stats.ttest_ind(v_PWS, v_PFS)
         (rs_z, rs_p) = stats.ranksums(v_PWS, v_PFS)
 
-        stfn = os.path.join(L2SeedTargDir, "stats.txt")
+        stfn = os.path.join(L2SeedTargDir, "stats_%.2f.txt" % mainMaskRatio)
         stf = open(stfn, "wt")
         stf.write("Main-masked values: \n")
         stf.write("PWS: mean=%f; ste=%f\n" \
