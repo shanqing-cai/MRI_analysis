@@ -79,8 +79,10 @@ for (i0, region) in enumerate(regions):
 
 allROIs = get_aparc12_cort_rois(lobe="all", bSpeech=False)
 
-altROINames = {"orig": ["Ag",  "Hg", "Lg", "ITOg", "MTOg"], \
-               "alt": ["AG", "H", "LG", "ITO", "MTO"]}
+altROINames = {"orig": ["Ag",  "Hg", "Lg", "ITOg", "MTOg", \
+                        "aCGg", "midCGg", "pCGg", "aPHg", "pPHg"], \
+               "alt": ["AG", "H", "LG", "ITO", "MTO", \
+                       "aCG", "midCG", "pCG", "aPH", "pPH"]}
 
 # ==== ~CONFIG: Construct the parcellation profile ==== #
 
