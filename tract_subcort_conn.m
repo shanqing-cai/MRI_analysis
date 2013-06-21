@@ -1,6 +1,7 @@
 function tract_subcort_conn(scSeed, mainMaskRatio)
 %% Constants
 tractSubcortConnDir = '/users/cais/STUT/analysis/tract_subcort_conn';
+tractSegDir = '/users/cais/STUT/analysis/tractseg_aparc12';
 
 grps = {'PWS', 'PFS'};
 
@@ -15,6 +16,29 @@ check_dir(seedDir);
 
 % -- Load the list of cortical ROIs -- %
 rois = aparc12_cortical_rois();
+
+%% -- Figure out the subject IDs and group labels -- %
+check_dir(tractSegDir);
+ds = dir(fullfile(tractSegDir, 'S*'));
+
+sIDs.PWS = {};
+sIDs.PFS = {};
+SSI4 = [];
+for i1 = 1 : numel(ds)
+    if length(ds(i1).name) ~= 3
+        continue;
+    end
+    
+    t_sID = LUT_MRI_subjIDs(ds(i1).name, 'inv');
+    t_grp = t_sID(1 : 3);
+    
+    sIDs.(t_grp){end + 1} = ds(i1).name;
+    
+    if isequal(t_grp, 'PWS')
+        SSI4(end + 1) = get_qdec_measure(ds(i1).name, 'SSI');
+    end
+end
+
 
 %% -- Load data -- %%
 sccConn = struct;
@@ -54,6 +78,10 @@ rs_ps = nan(1, numel(rois));
 rs_rs = nan(1, numel(rois));
 rs_sigs = nan(1, numel(rois));
 
+sp_rhos = nan(1, numel(rois));
+sp_ts = nan(1, numel(rois));
+sp_ps = nan(1, numel(rois));
+
 medDiffs = nan(1, numel(rois));
 
 hiliteROIs = {};
@@ -81,9 +109,29 @@ for i1 = 1 : numel(rois)
         drawBndClrs{end + 1} = [0, 1, 0];
     end
     
+    % -- Correlation with SSI4 -- %
+    [sp_rhos(i1), sp_ts(i1), sp_ps(i1)] = spear(SSI4(:), sccConn.PWS(:, i1));
+    
 %     t_fillROIs{end + 1} = roi;
 %     t_fillClrs{end + 1} = 
 end
+
+% -- Print significant correlation results -- %
+hashROIs = {};
+hashSigns = [];
+fprintf(1, '=== Results of SSI4 correlation ===\n');
+for i1 = 1 : numel(rois)
+    roi = rois{i1};
+    if sp_ps(i1) < P_THRESH_UNC
+        fprintf(1, '%s: spear: rho=%.3f; p=%.3f\n', ...
+                roi, sp_rhos(i1), sp_ps(i1));
+            
+        hashROIs{end + 1} = roi;
+        hashSigns(end + 1) = sign(sp_rhos(i1));
+    end
+end
+
+% [TODO: Implement random permutation test]
 
 %% Visualization
 cm0 = create_green_red_colormap();
@@ -129,7 +177,8 @@ imFASigMap.(hemi) = ...
         fill_aparc12_roi_fig(imBase, imDiv, imText, hemi, ...
                              t_fillROIs, 'fillClrs', t_fillClrs, ...
                              'clrNameROIs', hiliteROIs, hiliteROIClrs, ...
-                             'drawBndROIs', hiliteROIs, drawBndClrs);
+                             'drawBndROIs', hiliteROIs, drawBndClrs, ...
+                             'hashROIs', hashROIs, hashSigns);
 
 figure;
 imshow(imFASigMap.(hemi));
