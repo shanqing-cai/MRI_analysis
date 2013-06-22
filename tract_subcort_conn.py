@@ -12,7 +12,7 @@ from get_qdec_info import get_qdec_info
 tractSegDir = "/users/cais/STUT/analysis/tractseg_aparc12/"
 TRACULA_DIR = "/users/cais/STUT/analysis/dti2/tracula"
 FNIRT_DIR = '/users/cais/STUT/analysis/nipype/T1_fnirt'
-MNI152_TEMPLATE_FN = '/usr/share/fsl/data/standard/MNI152_T1_2mm.nii.gz'
+MNI152_TEMPLATE_FN = "/usr/share/fsl/data/standard/MNI152_T1_2mm.nii.gz"
 L2_DIR = "/users/cais/STUT/analysis/tract_subcort_conn"
 DESIGN_DIR = "/users/cais/STUT/analysis/design"
 

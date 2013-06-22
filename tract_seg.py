@@ -253,13 +253,31 @@ def tract_seg_sub(args, step, roiName=""):
             maskROINums.append(get_roi_num(CORTICAL_CTAB, hemi, t_ROI_name))
 
         # === Get the sizes of the ROIs === #
+        # === Load the mask images as well === #
+        maskImgs = []
+        maskData = []
+
         nROIs = len(maskROIs)
         roiNVoxes = [float('nan')] * nROIs
         for i0 in range(len(maskROIs_fn)):
             t_mask = maskROIs_fn[i0]
-            (stdout, stderr) = Popen(['fslstats', t_mask, '-V'], stdout=PIPE)\
-                .communicate()
-            roiNVoxes[i0] = float(stdout.split(' ')[0])
+            check_file(t_mask)
+
+            t_img = nib.load(t_mask)
+            t_img_dat = t_img.get_data()
+            
+            maskImgs.append(t_img_dat)
+            maskData.append(t_img_dat)
+            
+            #(stdout, stderr) = Popen(['fslstats', t_mask, '-V'], stdout=PIPE)\
+            #    .communicate()
+            #roiNVoxes[i0] = float(stdout.split(' ')[0])
+            roiNVoxes[i0] = np.sum(t_img_dat)
+            
+        #print(len(maskData))
+        #print(np.sum(maskData[29]))
+        #print(roiNVoxes[29])
+        #sys.exit(0)
 
         # === Process the voxels, one by one === %
         for (k0, coord) in enumerate(coords):
@@ -279,11 +297,15 @@ def tract_seg_sub(args, step, roiName=""):
 
                 fdtPathsFN = os.path.join(voxDir, 'fdt_paths.nii.gz')
                 check_file(fdtPathsFN)
-
+                
+                fdtImg = nib.load(fdtPathsFN)
+                fdtImgDat = fdtImg.get_data()
+                #print(fdtImgDat)
+                #sys.exit(0)
+                
                 if not os.path.isfile(fdtPathsFN):
                     print("WARNING: fdt_paths.nii.gz not found, skipping directory %s" % voxDir)
                     continue
-
                 t_txt = ''
                 for i0 in range(len(maskedVals)):
                     t_mask = maskROIs_fn[i0]
@@ -297,21 +319,28 @@ def tract_seg_sub(args, step, roiName=""):
                         maskedVals[i0] = 0.0;
                         print("WARNING: ROI mask %s is empty." % t_mask)
                     else:                        
-                        (stdout, stderr) = Popen(['fslstats', fdtPathsFN, \
-                                              '-k', t_mask, \
-                                              '-m'], stdout=PIPE, stderr=PIPE)\
-                                              .communicate()
+                        #(stdout, stderr) = Popen(['fslstats', fdtPathsFN, \
+                        #                      '-k', t_mask, \
+                        #                      '-m'], stdout=PIPE, stderr=PIPE)\
+                        #                      .communicate()
 
-                        if len(stderr) > 0:
-                            raise Exception, "fslstats reported ERROR during processing of coordinate (%d, %d, %d) and cortical ROI %s: \n%s" \
-                               % (coord[0], coord[1], coord[2], t_mask, stderr)
+                        #if len(stderr) > 0:
+                        #    raise Exception, "fslstats reported ERROR during processing of coordinate (%d, %d, %d) and cortical ROI %s: \n%s" \
+                        #       % (coord[0], coord[1], coord[2], t_mask, stderr)
 
-                        maskedVals[i0] = float(stdout.split(' ')[0])
+                        t_masked_val = np.sum(fdtImgDat * maskData[i0]) \
+                                       / roiNVoxes[i0]
+                        #maskedVals[i0] = float(stdout.split(' ')[0])
+                        maskedVals[i0] = t_masked_val
+
+                        #print(t_masked_val)
+                        #print(maskedVals[i0])
                         
                     #print("roiNVoxes = %d; maskNVox = %d" \
                     #      % (roiNVoxes[i0], maskNVox)) # DEBUG
                     t_txt += '%s %f %f\n' \
                          % (maskROIs[i0], roiNVoxes[i0], maskedVals[i0])        
+                #sys.exit(0)
 
                 masked_mean_f = open(masked_mean_fn, "wt")
                 masked_mean_f.write(t_txt)

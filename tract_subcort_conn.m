@@ -1,4 +1,4 @@
-function tract_subcort_conn(scSeed, mainMaskRatio)
+function tract_subcort_conn(scSeed, mainMaskRatio, varargin)
 %% Constants
 tractSubcortConnDir = '/users/cais/STUT/analysis/tract_subcort_conn';
 tractSegDir = '/users/cais/STUT/analysis/tractseg_aparc12';
@@ -9,6 +9,8 @@ grps = {'PWS', 'PFS'};
 P_THRESH_UNC = 0.05;
 
 %%
+cwd = pwd;
+assert(isequal(cwd(end - 6 : end), 'scripts'));
 check_dir(tractSubcortConnDir);
 
 seedDir = fullfile(tractSubcortConnDir, scSeed);
@@ -16,6 +18,19 @@ check_dir(seedDir);
 
 % -- Load the list of cortical ROIs -- %
 rois = aparc12_cortical_rois();
+
+nPerm = 0;
+if ~isempty(fsic(varargin, '--perm'))
+    nPerm = varargin{fsic(varargin, '--perm') + 1};
+    assert(nPerm > 0);
+    
+    check_dir('perm_files', '-create');
+    
+    permMatFN = fullfile('perm_files', ...
+        sprintf('%s_%s_%.2f_perm%d.mat', ...
+                mfilename, scSeed, ...
+                mainMaskRatio, nPerm));
+end
 
 %% -- Figure out the subject IDs and group labels -- %
 check_dir(tractSegDir);
@@ -88,34 +103,63 @@ hiliteROIs = {};
 hiliteROIClrs = {};
 drawBndClrs = {};
 
-for i1 = 1 : numel(rois)
-    roi = rois{i1};
+rp_sigs = nan(1 + nPerm, numel(rois));
+
+for i0 = 1 : 1 + nPerm
+    dat_a = [sccConn.PWS; sccConn.PFS];
     
-    [rs_ps(i1), ~, stats] = ranksum(sccConn.PWS(:, i1), sccConn.PFS(:, i1));
-    rs_zs(i1) = stats.zval;
-    rs_rs(i1) = stats.ranksum;
-    
-    medDiffs(i1) = median(sccConn.PWS(:, i1)) - median(sccConn.PFS(:, i1));
-    rs_sigs(i1) = sign(medDiffs(i1)) * -log10(rs_ps(i1));
-    
-    if rs_ps(i1) < P_THRESH_UNC
-        fprintf(1, '%s: ranksum z=%.3f; p=%.3f\n\t(Median: PWS=%f; PFS=%f)\n\t(IQR; PWS=%f; PFS=%f)\n', ...
-                roi, rs_zs(i1), rs_ps(i1), ...
-                median(sccConn.PWS(:, i1)), median(sccConn.PFS(:, i1)), ...
-                iqr(sccConn.PWS(:, i1)), iqr(sccConn.PFS(:, i1)));
-            
-        hiliteROIs{end + 1} = roi;
-        hiliteROIClrs{end + 1} = [0, 1, 0];
-        drawBndClrs{end + 1} = [0, 1, 0];
+    if i0 == 1 % No permutation
+        
+    else % Perform permutation
+        idxperm = randperm(size(dat_a, 1));
+        dat_a = dat_a(idxperm, :);
     end
-    
-    % -- Correlation with SSI4 -- %
-    [sp_rhos(i1), sp_ts(i1), sp_ps(i1)] = spear(SSI4(:), sccConn.PWS(:, i1));
-    
-%     t_fillROIs{end + 1} = roi;
-%     t_fillClrs{end + 1} = 
+    dat_PWS = dat_a(1 : size(sccConn.PWS, 1), :);
+    dat_PFS = dat_a(size(sccConn.PWS, 1) + 1 : end, :);
+        
+    for i1 = 1 : numel(rois)
+        roi = rois{i1};
+
+        [rs_ps(i1), ~, stats] = ranksum(dat_PWS(:, i1), dat_PFS(:, i1));
+        rs_zs(i1) = stats.zval;
+        rs_rs(i1) = stats.ranksum;
+
+        medDiffs(i1) = median(dat_PWS(:, i1)) - median(dat_PFS(:, i1));
+        rs_sigs(i1) = sign(medDiffs(i1)) * -log10(rs_ps(i1));
+
+        if i0 == 1
+            if rs_ps(i1) < P_THRESH_UNC
+                fprintf(1, '%s: ranksum z=%.3f; p=%.3f\n\t(Median: PWS=%f; PFS=%f)\n\t(IQR; PWS=%f; PFS=%f)\n', ...
+                        roi, rs_zs(i1), rs_ps(i1), ...
+                        median(dat_PWS(:, i1)), median(dat_PFS(:, i1)), ...
+                        iqr(dat_PWS(:, i1)), iqr(dat_PFS(:, i1)));
+
+                hiliteROIs{end + 1} = roi;
+                hiliteROIClrs{end + 1} = [0, 1, 0];
+                drawBndClrs{end + 1} = [0, 1, 0];
+            end
+        end
+
+        % -- Correlation with SSI4 -- %
+        [sp_rhos(i1), sp_ts(i1), sp_ps(i1)] = spear(SSI4(:), dat_PWS(:, i1));
+
+        rp_sigs(i0, i1) = rs_sigs(i1);
+    %     t_fillROIs{end + 1} = roi;
+    %     t_fillClrs{end + 1} = 
+    end
 end
 
+%%
+if nPerm > 0
+    save(permMatFN, 'rp_sigs');
+    check_file(permMatFN);
+end
+
+nrp_sigs = rp_sigs(1, :);
+rp_sigs = rp_sigs(2 : end, :);
+max_rp_sigs = max(abs(rp_sigs), [], 2);
+
+%%
 % -- Print significant correlation results -- %
 hashROIs = {};
 hashSigns = [];
@@ -143,8 +187,6 @@ end
 
 t_fillROIs = rois;
 t_fillClrs = {};
-
-
 
 max_abs_sig = nanmax(abs(rs_sigs));
 for i1 = 1 : numel(rois)
