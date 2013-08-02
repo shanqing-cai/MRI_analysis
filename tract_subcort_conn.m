@@ -36,9 +36,13 @@ end
 check_dir(tractSegDir);
 ds = dir(fullfile(tractSegDir, 'S*'));
 
-sIDs.PWS = {};
-sIDs.PFS = {};
+sIDs.PWS = {};      sIDs.PFS = {};
+
 SSI4 = [];
+EHcomp.PWS = [];    EHcomp.PFS = [];
+tempResp.PWS = [];  tempResp.PFS = [];
+rnSV.PWS = [];      rnSV.PFS = [];
+
 for i1 = 1 : numel(ds)
     if length(ds(i1).name) ~= 3
         continue;
@@ -48,6 +52,9 @@ for i1 = 1 : numel(ds)
     t_grp = t_sID(1 : 3);
     
     sIDs.(t_grp){end + 1} = ds(i1).name;
+    EHcomp.(t_grp)(end + 1) = get_qdec_measure(ds(i1).name, 'EH_comp_300');
+    tempResp.(t_grp)(end + 1) = get_qdec_measure(ds(i1).name, 'tempResp');
+    rnSV.(t_grp)(end + 1) = get_qdec_measure(ds(i1).name, 'rnSV');
     
     if isequal(t_grp, 'PWS')
         SSI4(end + 1) = get_qdec_measure(ds(i1).name, 'SSI');
@@ -97,6 +104,18 @@ sp_rhos = nan(1, numel(rois));
 sp_ts = nan(1, numel(rois));
 sp_ps = nan(1, numel(rois));
 
+ehc_sp_rhos = nan(1, numel(rois));
+ehc_sp_ts = nan(1, numel(rois));
+ehc_sp_ps = nan(1, numel(rois));
+
+tr_sp_rhos = nan(1, numel(rois));
+tr_sp_ts = nan(1, numel(rois));
+tr_sp_ps = nan(1, numel(rois));
+
+rnsv_sp_rhos = nan(1, numel(rois));
+rnsv_sp_ts = nan(1, numel(rois));
+rnsv_sp_ps = nan(1, numel(rois));
+
 medDiffs = nan(1, numel(rois));
 
 hiliteROIs = {};
@@ -140,8 +159,34 @@ for i0 = 1 : 1 + nPerm
             end
         end
 
-        % -- Correlation with SSI4 -- %
-        [sp_rhos(i1), sp_ts(i1), sp_ps(i1)] = spear(SSI4(:), dat_PWS(:, i1));
+        if i0 == 1
+            % -- Correlation with SSI4 -- %
+            [sp_rhos(i1), sp_ts(i1), sp_ps(i1)] = spear(SSI4(:), dat_PWS(:, i1));
+            
+            a_ehc = [EHcomp.PWS(:); EHcomp.PFS(:)];
+            a_dat = [dat_PWS(:, i1); dat_PFS(:, i1)];
+            idxn = find(~isnan(a_ehc) & ~isnan(a_dat));
+            a_ehc = a_ehc(idxn);
+            a_dat = a_dat(idxn);
+            [ehc_sp_rhos(i1), ehc_sp_ts(i1), ehc_sp_ps(i1)] = ...
+                spear(a_ehc, a_dat);
+            
+            a_tr = [tempResp.PWS(:); tempResp.PFS(:)];
+            a_dat = [dat_PWS(:, i1); dat_PFS(:, i1)];
+            idxn = find(~isnan(a_tr) & ~isnan(a_dat));
+            a_tr = a_tr(idxn);
+            a_dat = a_dat(idxn);
+            [tr_sp_rhos(i1), tr_sp_ts(i1), tr_sp_ps(i1)] = ...
+                spear(a_tr, a_dat);
+            
+            a_rnsv = [rnSV.PWS(:); rnSV.PFS(:)];
+            a_dat = [dat_PWS(:, i1); dat_PFS(:, i1)];
+            idxn = find(~isnan(a_rnsv) & ~isnan(a_dat));
+            a_rnsv = a_rnsv(idxn);
+            a_dat = a_dat(idxn);
+            [rnsv_sp_rhos(i1), rnsv_sp_ts(i1), rnsv_sp_ps(i1)] = ...
+                spear(a_rnsv, a_dat);
+        end
 
         rp_sigs(i0, i1) = rs_sigs(i1);
     %     t_fillROIs{end + 1} = roi;
@@ -164,15 +209,70 @@ max_rp_sigs = max(abs(rp_sigs), [], 2);
 hashROIs = {};
 hashSigns = [];
 fprintf(1, '=== Results of SSI4 correlation ===\n');
+nSig = 0;
 for i1 = 1 : numel(rois)
     roi = rois{i1};
     if sp_ps(i1) < P_THRESH_UNC
+        nSig = nSig + 1;
         fprintf(1, '%s: spear: rho=%.3f; p=%.3f\n', ...
                 roi, sp_rhos(i1), sp_ps(i1));
             
         hashROIs{end + 1} = roi;
         hashSigns(end + 1) = sign(sp_rhos(i1));
     end
+end
+if nSig == 0
+    fprintf(1, '[NONE]\n\n');
+else
+    fprintf(1, '\n');
+end 
+
+fprintf(1, '=== Results of EHcomp correlation ===\n');
+nSig = 0;
+for i1 = 1 : numel(rois)
+    roi = rois{i1};
+    if ehc_sp_ps(i1) < P_THRESH_UNC
+        nSig = nSig + 1;
+        fprintf(1, '%s: spear: rho=%.3f; p=%.3f\n', ...
+                roi, ehc_sp_rhos(i1), ehc_sp_ps(i1));
+    end
+end
+if nSig == 0
+    fprintf(1, '[NONE]\n\n');
+else
+    fprintf(1, '\n');
+end
+
+fprintf(1, '=== Results of tempResp correlation ===\n');
+nSig = 0;
+for i1 = 1 : numel(rois)
+    roi = rois{i1};
+    if tr_sp_ps(i1) < P_THRESH_UNC
+        nSig = nSig + 1;
+        fprintf(1, '%s: spear: rho=%.3f; p=%.3f\n', ...
+                roi, tr_sp_rhos(i1), tr_sp_ps(i1));
+    end
+end
+if nSig == 0
+    fprintf(1, '[NONE]\n\n');
+else
+    fprintf(1, '\n');
+end
+
+fprintf(1, '=== Results of rnSV correlation ===\n');
+nSig = 0;
+for i1 = 1 : numel(rois)
+    roi = rois{i1};
+    if rnsv_sp_ps(i1) < P_THRESH_UNC
+        nSig = nSig + 1;
+        fprintf(1, '%s: spear: rho=%.3f; p=%.3f\n', ...
+                roi, rnsv_sp_rhos(i1), rnsv_sp_ps(i1));
+    end
+end
+if nSig == 0
+    fprintf(1, '[NONE]\n\n');
+else
+    fprintf(1, '\n');
 end
 
 % [TODO: Implement random permutation test]

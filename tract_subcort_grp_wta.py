@@ -6,6 +6,7 @@ import glob
 import argparse
 
 from scai_utils import *
+from aparc12 import get_aparc12_cort_rois
 
 TRACT_SUBCORT_DIR = "/users/cais/STUT/analysis/tract_subcort_conn"
 TRACT_SUBCORT_WTA_DIR = "/users/cais/STUT/analysis/tract_subcort_wta"
@@ -34,12 +35,14 @@ if __name__ == "__main__":
     check_dir(scDir)
 
     check_dir(TRACT_SUBCORT_WTA_DIR, bCreate=True)
-    outDir = os.path.join(TRACT_SUBCORT_WTA_DIR, args.mode)
+    outDir = os.path.join(TRACT_SUBCORT_WTA_DIR, args.scSeed, args.mode)
     check_dir(outDir, bCreate=True)
     
     # Look for the mask
+#    mask = os.path.join(TRACT_SUBCORT_DIR, args.scSeed, \
+#                        "mask", "merged_mask_min_bin.nii.gz")
     mask = os.path.join(TRACT_SUBCORT_DIR, args.scSeed, \
-                        "mask", "merged_mask_min_bin.nii.gz")
+                        "mask", "mainMask_mask_PFS_0.75.nii.gz")
     check_file(mask)
     print("INFO: Mask = %s" % mask)
     
@@ -48,6 +51,12 @@ if __name__ == "__main__":
     if args.mode == "coarse":
         for (i0, t_region) in enumerate(REGIONS):
             ROIs.append("%d_%s" % (i0, t_region))
+    else:
+        aparc12_rois = get_aparc12_cort_rois(lobe="all")
+        for (i0, t_region) in enumerate(aparc12_rois):
+            if not (t_region == "aINS" or t_region == "pINS" \
+                    or t_region == "LG"):
+                ROIs.append(t_region)
 
     meanMerged = {}
     for (i0, grp) in enumerate(GRPS):
@@ -72,11 +81,15 @@ if __name__ == "__main__":
 
         (sout, serr) = cmd_stdout("fslstats %s -P 100" % mask)
         assert(len(serr) == 0)
-        assert(float(sout.split(" ")[0]) == 1.0)r
+        assert(float(sout.split(" ")[0]) == 1.0)
 
         addCmd = "fslmaths %s -add %s %s" % (maxnFN, mask, maxnFN)
         saydo(addCmd)
         
+    # Print LUT
+    if args.mode == "fine":
+        for (i0, t_region) in enumerate(ROIs):
+            print("%d - %s" % (i0 + 1, t_region))
     
 
         
