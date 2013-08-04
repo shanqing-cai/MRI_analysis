@@ -4,14 +4,17 @@ import os
 import sys
 import argparse
 import glob
-from scai_utils import saydo
+from scai_utils import *
 
 DATA_DIR = "/users/cais/STUT/DATA"
+DATA_DIR_RHY = "/users/cais/RHY/DATA"
 FSDATA_DIR = "/users/cais/STUT/FSDATA"
-DTIPREP_PATH = "/software/DTIPrep/1.1.6"
+# DTIPREP_PATH = "/software/DTIPrep/1.1.6"
+DTIPREP_PATH = "/software/DTIPrep/130630"
 OUTPUT_DIR = "/users/cais/STUT/analysis/dti"
+OUTPUT_DIR_RHY = "/users/cais/RHY/analysis/dwi"
 NRRD2NIFTI_BIN = "/software/DTIPrep/dev/DWI_NiftiNrrdConversion"
-DWICONVERT_BIN = "/software/DTIPrep/dev/DWIConvert"
+DWICONVERT_BIN = "/software/DTIPrep/3f0a2b4/DWIConvert"
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run DTIPrep on STUT data")
@@ -58,11 +61,12 @@ if __name__ == "__main__":
         if not os.path.isfile(bve):
             raise Exception, "Cannot find bvecs file: %s"%(bve)
 
-    else: # MIT STUT study
+    elif len(sID) == 3 and sID.startswith("S"): # MIT STUT study
         rawdifdir = os.path.join(DATA_DIR, sID, "diffusion");
         if not os.path.isdir(rawdifdir):
             raise Exception, "Cannot find raw NIFTI diffusion data directory: %s"\
                              %(rawdifdir)
+
         bva = glob.glob(os.path.join(rawdifdir, "%s_*.mghdti.bvals"%(sID)))
         if len(bva) == 0:
             raise Exception, "Found no DTI volumes in raw data directory: %s"\
@@ -82,6 +86,29 @@ if __name__ == "__main__":
             raise Exception, "Cannot find raw 4D DTI series: %s"%(raw4d)
         if not os.path.isfile(bve):
             raise Exception, "Cannot find bvecs file: %s"%(bve)
+    else:
+        DATA_DIR = DATA_DIR_RHY
+        OUTPUT_DIR = OUTPUT_DIR_RHY
+        rawdifdir = os.path.join(DATA_DIR, sID, "diffusion")
+
+        if not os.path.isdir(rawdifdir):
+            raise Exception, "Cannot find raw NIFTI diffusion data directory: %s"\
+                             %(rawdifdir)
+
+        bva = glob.glob(os.path.join(rawdifdir, "%s_diffusion_*.bval" % sID))
+        if len(bva) == 0:
+            raise Exception, "Found no DTI volumes in raw data directory: %s"\
+                             %(rawdifdir)
+        
+        bva = bva[-1]
+        rootname = os.path.split(bva)[1].replace('.bval', '')
+        print("INFO: rootname = %s"%(rootname))
+
+        raw4d = os.path.join(rawdifdir, "%s.nii.gz"%(rootname))
+        check_file(raw4d)
+        
+        bve = os.path.join(rawdifdir, "%s.bvec"%(rootname))
+        check_file(bve)
 
     print("INFO: raw4d = %s"%(raw4d))
     print("INFO: bva = %s"%(bva))
@@ -112,7 +139,7 @@ if __name__ == "__main__":
             print("INFO: nifti-to-nrrd conversion done: output = %s\n"%(nrrdfn))
 
     if bConvertOnly:
-        sys.exit(0)    
+        sys.exit(0)
 
     # ------- Convert to Nrrd ------ #
     # Find the diffusion_dcm directory
@@ -160,6 +187,8 @@ if __name__ == "__main__":
 
         if not os.path.isfile(qced_nrrd):
             raise Exception,  "It appears that DTIPrep has failed: cannot find series: %s"%(qced_nrrd)
+
+    sys.exit(0)
 
     # ------ Convert QCed back to nifti ------ #
     qced_ngz = os.path.join(qcDir, "%s_QCed.nii.gz"%(sID))
