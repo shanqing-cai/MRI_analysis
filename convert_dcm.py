@@ -1,4 +1,4 @@
-#!/speechlab/software/EPD7/epd-7.1-1-rh5-x86_64/bin/python
+#!/usr/bin/env python
 
 import os
 import sys
