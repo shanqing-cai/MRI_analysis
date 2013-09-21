@@ -40,23 +40,21 @@ if __name__ == "__main__":
     delete_file_if_exists(tmpDir, recursive=True)
     check_dir(tmpDir, bCreate=True)
     
-
-    
     dcm2nii_cmd = "dcm2nii -a n -o %s %s" \
                   % (os.path.abspath(tmpDir), \
                      os.path.join(os.path.abspath(args.inputDir), "*"))
-
     saydo(dcm2nii_cmd)
-    sys.exit(0)
 
     # Apply heuristics to move and rename files #
     niis = glob.glob(os.path.join(tmpDir, "*.nii.gz"))
     niis.sort()
+    bvec_bval_done = False
     for (i0, nii) in enumerate(niis):
         [nfp, nfn] = os.path.split(nii)
 
         imgStr = ""
         imgType = ""
+        
         for (i1, t_item) in enumerate(heur):
             if (t_item[0] in nfn):
                 imgStr = t_item[0]
@@ -94,6 +92,20 @@ if __name__ == "__main__":
 
         saydo("cp %s %s" % (nii, imgFN))
         check_file(imgFN)
+
+        if imgType == "diffusion" and not bvec_bval_done:
+            bvec = nii.replace(".nii.gz", ".bvec")
+            bval = nii.replace(".nii.gz", ".bval")            
+            check_file(bvec)
+            check_file(bval)
+
+            bvec_new = imgFN.replace(".nii.gz", ".bvec")
+            bval_new = imgFN.replace(".nii.gz", ".bval")
+
+            saydo("cp %s %s" % (bvec, bvec_new))
+            saydo("cp %s %s" % (bval, bval_new))
+
+            bvec_bval_done = True
 
 
     # === Remove temporary directory === #
