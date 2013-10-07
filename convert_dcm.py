@@ -13,7 +13,9 @@ heur = [["functionalsparse", "bold"],
         ["DIFFUSIONHIGHRES10Min", "diffusion"], 
         ["AAHeadScout32", "aascout"],
         ["tflmghmultiecho1mmiso", "T1"],
-        ["localizer", "localizer"]]
+        ["localizer", "localizer"], 
+        ["restingstate", "resting"], 
+        ["t2spc", "t2spc"]]
         
 
 if __name__ == "__main__":

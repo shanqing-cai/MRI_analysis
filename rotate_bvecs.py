@@ -50,8 +50,12 @@ if __name__ == "__main__":
     for (i0, t_line) in enumerate(bvtxt):
         if len(t_line) == 0:
             continue
+
+        if t_line.endswith(" "):
+            t_line = t_line[:-1]
+
         if t_line.count(' ') != 2:
-            raise Exception, "Unrecognized formant in line %d of input bvecs file %s" (i0 + 1, inBvecs)
+            raise Exception, "Unrecognized format in line %d of input bvecs file %s" (i0 + 1, inBvecs)
         tbv = []
         for word in t_line.split(' '):
             tbv.append(float(word))
