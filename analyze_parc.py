@@ -108,32 +108,33 @@ if __name__ == "__main__":
                   "area_mm2": area_mm2}
         savemat(matFile, intRes)
         info_log("Saved intermediate results to file: %s" % matFile)
-    else:
-        info_log("Loaded intermediate results from file: %s" % matFile)
-        intRes = loadmat(matFile)
 
-        #== Verify the intermediate results ==#
-        bVerified = True;
-        bVerified = bVerified and (list(intRes["sIDs"]) == sIDs)
-        bVerified = bVerified and (list(intRes["grps"]) == grps)
+
+    info_log("Loaded intermediate results from file: %s" % matFile)
+    intRes = loadmat(matFile)
+
+    #== Verify the intermediate results ==#
+    bVerified = True;
+    bVerified = bVerified and (list(intRes["sIDs"]) == sIDs)
+    bVerified = bVerified and (list(intRes["grps"]) == grps)
         
-        if bVerified:
-            info_log("Intermediate results verified.")
-        else:
-            error_log("Intermediate results veroficiation failed. Use --redo option to generate valid intermediate results.")
+    if bVerified:
+        info_log("Intermediate results verified.")
+    else:
+        error_log("Intermediate results veroficiation failed. Use --redo option to generate valid intermediate results.")
 
-        morphInfo = intRes["morphInfo"]
-        uniqueROIs = list(intRes["uniqueROIs"])
+    morphInfo = intRes["morphInfo"]
+    uniqueROIs = list(intRes["uniqueROIs"])
 
-        uniqueROIs = [x.strip() for x in uniqueROIs]
+    uniqueROIs = [x.strip() for x in uniqueROIs]
 
-        area_mm2 = intRes["area_mm2"][0]
+    area_mm2 = intRes["area_mm2"][0]
     
     #=== Test analysis ===#
     import matplotlib.pyplot as plt
 
-    roi_a = "lh_vIFo"
-    roi_b = "lh_PT"
+    roi_a = "rh_vPMC"
+    roi_b = "rh_PT"
     
     ridx_a = uniqueROIs.index(roi_a)
     ridx_b = uniqueROIs.index(roi_b)
