@@ -85,6 +85,9 @@ if __name__ == "__main__":
     uOutDir = args.uOutDir
     bNoSurfProj = args.bNoSurfProj
 
+    if bCCAvoid and bCCWaypoint:
+        raise Exception, "Used incompatible options: --ccavoid and --ccwaypoint"
+
     """
     if bCCAvoid and stoplabel == "":
         raise Exception, "--ccavoid must be used together with --stoplabel"
@@ -105,7 +108,7 @@ if __name__ == "__main__":
     check_dir(sResDir, bCreate=True)
 
     # Prepare CC (corpus callosum) mask (optional)
-    if bCCAvoid:
+    if bCCAvoid or bCCWaypoint:
         ccMask = os.path.join(FSDATA_DIR, sID, "mri", "ccMask_diff.nii.gz")
         check_file(ccMask)
 
@@ -147,7 +150,7 @@ if __name__ == "__main__":
         os.system(proj_cmd)
         check_file(stopLblVolFN)
         """
-        
+
     # Determine whether the ROI is a subcortical ROI
     if not (aparc12_roiName.startswith("lh_") or \
             aparc12_roiName.startswith("rh_")):
@@ -182,7 +185,7 @@ if __name__ == "__main__":
                   (scSegNum[0], scSegNum[1]))
         else:
             raise Exception, "Unrecognized scSegNumStr: %s" % scSegNumStr
-        
+
 
     # === Prepare WM waypoint mask (optional) ===
     sTracDir = os.path.join(TRACULA_BASE, sID)
@@ -190,7 +193,7 @@ if __name__ == "__main__":
 
     FA_img = os.path.join(sTracDir, "dmri", "dtifit_FA.nii.gz")
     check_file(FA_img)
-    
+
     if bWMWaypoint:
         if bSC:
             raise Exception, "White-matter waypoint (WM) is not currently supported under bSC = True"
@@ -322,7 +325,7 @@ if __name__ == "__main__":
         check_file(tractSegSeedMask)
 
         seedMaskFN = tractSegSeedMask
-        
+    
     # Locate the bedpostx base dir
     bpbase = os.path.join(TRACULA_BASE, sID, "dmri.bedpostX")
     check_dir(bpbase)
@@ -355,6 +358,11 @@ if __name__ == "__main__":
             outdir += "_ccAvoid"
         else:
             outdir += "_caww"
+    else:
+        if not bWMWaypoint:
+            outdir += "_cw"
+        else:
+            outdir += "_cwww"
 
     if bpt2:
         outdir += "_pt2"
@@ -375,31 +383,23 @@ if __name__ == "__main__":
               ' -P 5000 ' + \
               ' --forcedir --opd --pd --dir=' + outdir
 
+    check_dir(outdir, bCreate=True)    
+
+    # === Delete old waypoint file === #
+    wpfn = os.path.join(outdir, "waypoints.txt")
+    if os.path.isfile(wpfn):
+        saydo("rm -rf %s" % wpfn)
+
     # === Destination label === #
     if stoplabel != "":
-        """
-        wptext = xfm_stopLbl_out + '\n'        
-        wpfn = stopLblVolFN.replace(".nii.gz", ".txt")
-        wpf = open(wpfn, "w")
-        wpf.write(wptext)
-        wpf.close()
-        check_file(wpfn)
-        cmd += " --stop=%s --waypoints=%s"%(xfm_stopLbl_out, wpfn)
-        """
-
         wptext = stopLblVolFN + "\n"
-        wpfn = stopLblVolFN.replace(".nii.gz", ".txt")
-        wpf = open(wpfn, "w")
+        # wpfn = stopLblVolFN.replace(".nii.gz", ".txt")
+        wpf = open(wpfn, "at")
         wpf.write(wptext)
         wpf.close()
         check_file(wpfn)
         cmd += " --stop=%s --waypoints=%s"%(stopLblVolFN, wpfn)
-        #cmd += " --waypoints=%s --stop=%s"%(wpfn, stopLblVolFN)
 
-        """
-        check_targ_reg_cmd = "tkregister2 --mov %s --targ %s --identity --reg identity.dat" \
-                             % (xfm_stopLbl_out, FA_img)
-        """
         check_targ_reg_cmd = "tkregister2 --mov %s --targ %s --identity --reg identity.dat" \
                              % (stopLblVolFN, FA_img)
 
@@ -409,21 +409,33 @@ if __name__ == "__main__":
             raise Exception, "Current version does not support simultaneous bWMWaypoint and stoplabel"
 
         wptext = ipsiWMMask + "\n"
-        wpfn = ipsiWMMask.replace(".nii.gz", ".txt")
-        wpf = open(wpfn, "w")
+        # wpfn = ipsiWMMask.replace(".nii.gz", ".txt")
+        wpf = open(wpfn, "at")
         wpf.write(wptext)
         wpf.close()
 
         check_file(wpfn)
-        cmd += " --waypoints=%s" % (wpfn)
+        wpWord = " --waypoints=%s" % (wpfn)
+        if cmd.count(wpWord) == 0:
+            cmd += wpWord
+        
+    #=== Corpus callosum waypoint ===#
+    if bCCWaypoint:
+        wptext = ccMask + "\n"
+        wpf = open(wpfn, "at")
+        wpf.write(wptext)
+        wpf.close()
+
+        check_file(wpfn)
+        wpWord = " --waypoints=%s" % (wpfn)
+        if cmd.count(wpWord) == 0:
+            cmd += wpWord
         
     if bCCAvoid:
         cmd += " --avoid=%s" % ccMask
 
     if not bNoProbtrackx:
         saydo(cmd)
-
-    check_dir(outdir)
 
     # Get the sizes of the seed (and the stop mask) and write the info to the results directory
     (sout, serr) = Popen(['fslstats', seedMaskFN, '-V'], 
