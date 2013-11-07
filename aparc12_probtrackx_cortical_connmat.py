@@ -9,7 +9,7 @@ from scipy.io import savemat
 from subprocess import Popen, PIPE
 
 from scai_utils import *
-from aparc12 import get_aparc12_cort_rois
+
 
 DATA_DIR = "/users/cais/STUT/DATA"
 TRACULA_BASE = "/users/cais/STUT/analysis/dti2/tracula"
@@ -24,9 +24,9 @@ VALID_SPEECH_MODES = ['', 'speech', 'speech_PFS_lh', 'speech_PFS_rh', \
                       'speech_2g_lh', 'speech_2g_rh']
 
 if __name__ == "__main__":
-    ap = argparse.ArgumentParser(description="Generate single-hemisphere cortical WM connectivity matrix based on the aparc12_probtrackx results")
+    ap = argparse.ArgumentParser(description="Generate single-hemisphere (lh/rh) or cross-hemisphere (xh) cortical WM connectivity matrix based on the aparc12_probtrackx results")
     ap.add_argument("sID", help="Subject ID")
-    ap.add_argument("hemi", help="hemisphere {lh, rh}")
+    ap.add_argument("hemi", help="hemisphere {lh - left hemisphere, rh - right hemisphere, xh - cross-hemisphere}")
     ap.add_argument("--speech", dest="bSpeech", action="store_true", \
                     help="Use the speech (sub-)network")
     ap.add_argument("--speechMode", type=str, default="", \
@@ -35,6 +35,8 @@ if __name__ == "__main__":
                     help="Corpus-callosum avoidance and ipsilateral WM waypoint mask")
     ap.add_argument("--pt2", dest="bpt2", action="store_true", \
                     help="Use probtrackx2 results")
+    ap.add_argument("--oldver", dest="bOldVer", action="store_true",
+                    help="Use the old version of ROI names")
 
     if len(sys.argv) <= 1:
         ap.print_help()
@@ -48,6 +50,11 @@ if __name__ == "__main__":
     bCAWW = args.bCAWW
     bSpeech = args.bSpeech
     speechMode = args.speechMode
+
+    if args.bOldVer:
+        from aparc12_oldVer import get_aparc12_cort_rois
+    else:
+        from aparc12 import get_aparc12_cort_rois
 
     if bSpeech and len(speechMode) > 0:
         raise Exception, "Options --speech and --speechMode cannot be used together"
@@ -73,7 +80,7 @@ if __name__ == "__main__":
     check_dir(TRACTS_RES_DIR)
 
     # Check sanity of input arguments
-    if not (hemi == "lh" or hemi == "rh"):
+    if not (hemi == "lh" or hemi == "rh" or hemi == "xh"):
         raise Exception, "Unrecognized hemisphere: %s" % hemi
 
     if len(speechMode) > 6:
@@ -87,9 +94,16 @@ if __name__ == "__main__":
     else:
         t_rois = get_aparc12_cort_rois("all", bSpeech=speechMode)
     t_rois.sort()
+    
     h_rois = []
-    for t_roi in t_rois:
-        h_rois.append(hemi + "_" + t_roi)
+    if hemi == "lh" or hemi == "rh":    
+        for t_roi in t_rois:
+            h_rois.append(hemi + "_" + t_roi)
+    elif hemi == "xh":
+        hemis = ["lh", "rh"]
+        for t_hemi in hemis:
+            for t_roi in t_rois:
+                h_rois.append(t_hemi + "_" + t_roi)
 
     # Preparation: check directories
     sDataDir = os.path.join(DATA_DIR, sID)
@@ -136,6 +150,10 @@ if __name__ == "__main__":
         print("Processing seed ROI: %s" % seedROI)
 
         for (i1, targROI) in enumerate(h_rois):
+            if hemi == "xh":
+                if seedROI[:3] == targROI[:3]:
+                    continue # xh: Omit same-hemisphere projections
+
             # Get mean
             mean_cmd = "fslstats %s -k %s -m" % (fdtp, diff_roi_masks[i1])
             (stdout, stderr) = Popen(mean_cmd.split(' '), \
