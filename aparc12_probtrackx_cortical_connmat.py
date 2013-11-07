@@ -7,6 +7,7 @@ import argparse
 import numpy as np
 from scipy.io import savemat
 from subprocess import Popen, PIPE
+import nibabel as nb
 
 from scai_utils import *
 
@@ -130,6 +131,28 @@ if __name__ == "__main__":
     connmat_mean_norm = np.zeros([nROIs, nROIs])
     connmat_median_norm = np.zeros([nROIs, nROIs])
 
+    #=== Load ROI masks ===#
+    info_log("Loading %d ROI masks" % len(diff_roi_masks))
+
+    mask_shapes = []
+    nzIdx = []
+    for (i0, roi_mask) in enumerate(diff_roi_masks):
+        check_file(roi_mask)
+        
+        t_img = nb.load(roi_mask)
+        t_img_dat = t_img.get_data()
+
+        mask_shapes.append(np.shape(t_img_dat))
+            
+        t_img_dat = np.ndarray.flatten(t_img_dat)
+            
+        nzIdx.append(np.nonzero(t_img_dat)[0])
+
+    if len(np.unique(mask_shapes)) != 1:
+        error_log("Non-unique matrix size among the mask files", logFN=logFN)
+    imgShape = np.unique(mask_shapes)[0]
+
+    #=== Get connectivity data ===#
     # Rows: seeds; columns: targets
     for (i0, seedROI) in enumerate(h_rois):
         roiResDir = os.path.join(sResDir, seedROI)
@@ -147,8 +170,30 @@ if __name__ == "__main__":
         fdtpn = os.path.join(roiResDir, "fdt_paths_norm.nii.gz")
         check_file(fdtpn)
 
-        print("Processing seed ROI: %s" % seedROI)
+        info_log("Processing seed ROI: %s" % seedROI)
 
+        # Load fdtp image 
+        t_img = nb.load(fdtp)
+        t_img_dat = t_img.get_data()
+        assert(list(np.shape(t_img_dat)) == list(imgShape))
+        img_dat = np.ndarray.flatten(t_img_dat)
+
+        # Load fdtpn image
+        t_img = nb.load(fdtpn)
+        t_img_dat = t_img.get_data()
+        assert(list(np.shape(t_img_dat)) == list(imgShape))
+        img_dat_n = np.ndarray.flatten(t_img_dat)
+        
+        for (i1, targROI) in enumerate(h_rois):
+            if hemi == "xh" and seedROI[:3] == targROI[:3]:
+                continue # xh: Omit same-hemisphere projections
+
+            connmat_mean[i0, i1] = np.mean(img_dat[nzIdx[i1]])
+            connmat_mean_norm[i0, i1] = np.mean(img_dat_n[nzIdx[i1]])
+            connmat_median[i0, i1] = np.median(img_dat[nzIdx[i1]])
+            connmat_median_norm[i0, i1] = np.median(img_dat_n[nzIdx[i1]])
+
+        """
         for (i1, targROI) in enumerate(h_rois):
             if hemi == "xh":
                 if seedROI[:3] == targROI[:3]:
@@ -194,6 +239,7 @@ if __name__ == "__main__":
                 raise Exception, "Error occurred during %s" % med_norm_cmd
             t_val = float(stdout.split(' ')[0])
             connmat_median_norm[i0, i1] = t_val
+       """
 
     # Save results to mat file
     resMatFN = os.path.join(sResDir, "connmats.%s.mat" % hemi)    
@@ -212,4 +258,4 @@ if __name__ == "__main__":
              "connmat_median_norm": connmat_median_norm})
     check_file(resMatFN)
 
-    print("Connectivity matrices saved to mat file: %s" % resMatFN)
+    info_log("Connectivity matrices saved to mat file: %s" % resMatFN)
