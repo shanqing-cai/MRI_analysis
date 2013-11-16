@@ -3,6 +3,18 @@ function [p, sgn, varargout] = ...
 %               p_SSI4_spr, rho_SSI4_spr, ...
 %           p_EHcomp_spr, rho_EHcomp_spr, ...
 %           p_rnSV_spr, rho_rnSV_spr] = ...
+
+%% Process optional input arguments
+% hemi = '';
+% if ~isempty(fsic(varargin, '--hemi'))
+%     hemi = varargin{fsic(varargin, '--hemi') + 1};
+% end
+% 
+% if isequal(hemi, 'xh')
+%     bXH = 1;
+% end
+
+%%
 nrois = size(a_cmat.PWS, 1);
 
 p = nan(nrois, nrois);

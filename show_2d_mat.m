@@ -5,6 +5,34 @@ verticalPadding = visParams(2);
 horizontalPadding = visParams(3);
 cellShift = visParams(4);
 
+%% Process cross-hemisphere sprois (Optional)
+if length(sprois) == 2 && iscell(sprois{1}) && iscell(sprois{2}) % Cross hemisphere
+    bXH = 1;
+    
+    row_rois = sprois{1};
+    col_rois = sprois{2};
+    
+    assert(length(sprois{1}) == length(sprois{2}));
+    
+    rois0 = sprois;
+    sprois = cell(1, length(rois0{1}));
+    for i1 = 1 : length(rois0{1})
+        t_strs = splitstring(rois0{1}{i1});
+        t_strs_b = splitstring(rois0{2}{i1});               
+        
+        assert(length(t_strs) == 2);
+        assert(length(t_strs_b) == 2);
+        assert(isequal(t_strs{2}, t_strs_b{2}));
+        
+        sprois{i1} = t_strs{2};
+    end
+else
+    bXH = 0;
+    
+    row_rois = sprois;
+    col_rois = sprois;
+end
+
 %%
 max_abs = max(abs(sig_rs(:)));
 sig_rs = [sig_rs; zeros(1, size(sig_rs, 1))];
@@ -59,20 +87,14 @@ plot(xs, xs, '-', 'Color', [0.5, 0.5, 0.5]);
 
 %%
 nSigs = [0, 0]; % [Pos, Neg]
-for k1 = 1 : numel(sprois)
-    for k2 = 1 : numel(sprois)
+for k1 = 1 : numel(row_rois)
+    for k2 = 1 : numel(col_rois)
         if abs(sig_rs(k2, k1)) > abs(log10(0.005))
-%             text(k1 - cellShift, k2 - cellShift, '*', 'Color', 'w');
-%             draw_asterisk(k1, k2, 'w');
             draw_square(k1, k2, 'w');
-%             draw_diamond(k1, k2, 'w');
         elseif abs(sig_rs(k2, k1)) > abs(log10(0.01))
-%             text(k1 - cellShift, k2 - cellShift, 'X', 'Color', 'w');
             draw_x(k1, k2, 'w');
         elseif abs(sig_rs(k2, k1)) > abs(log10(0.05))
-%             text(k1 - cellShift, k2 - cellShift, 'O', 'Color', 'w'); 
             draw_diamond(k1, k2, 'w');
-%             draw_square(k1, k2, 'w');
         end
         
         if abs(sig_rs(k2, k1)) > abs(log10(0.05))
@@ -84,7 +106,7 @@ for k1 = 1 : numel(sprois)
         end
         
         if abs(sig_rs(k2, k1)) > abs(log10(0.05))
-            sigConnections{end + 1} = {sprois{k1}, sprois{k2}};
+            sigConnections{end + 1} = {row_rois{k1}, col_rois{k2}};
             sigVals(end + 1) = sig_rs(k2, k1);
         end
     end
@@ -108,27 +130,27 @@ if isempty(fsic(varargin, 'noShowChi2Test'))
 end
 
 % --- Labels for columns --- %
-ht_cols = nan(1, numel(sprois));
-ht_cols_top = nan(1, numel(sprois));
+ht_cols = nan(1, numel(col_rois));
+ht_cols_top = nan(1, numel(col_rois));
 horizontalAdjust = -0.10;
 verticalAdjust = 0.75;
-for k1 = 1 : numel(sprois)
+for k1 = 1 : numel(col_rois)
     ht_cols(k1) = text(k1, ...
-                       numel(sprois) + verticalAdjust, ...
-                       strrep(sprois{k1}, [hemi, '_'], ''), ...
+                       numel(col_rois) + verticalAdjust, ...
+                       strrep(col_rois{k1}, [hemi, '_'], ''), ...
                        'FontSize', 12);
     ht_cols_top(k1) = text(k1 + horizontalAdjust, 0, ...
-                       strrep(sprois{k1}, [hemi, '_'], ''), ...
+                       strrep(col_rois{k1}, [hemi, '_'], ''), ...
                        'FontSize', 12);
     set(ht_cols(k1), 'rotation', -90);
     set(ht_cols_top(k1), 'rotation', 90);
 end
 
 % --- Labels for rows --- %
-ht_rows = nan(1, numel(sprois));
-for k1 = 1 : numel(sprois)
+ht_rows = nan(1, numel(row_rois));
+for k1 = 1 : numel(row_rois)
     ht_rows(k1) = text(-horizontalPadding, k1, ...
-                       strrep(sprois{k1}, [hemi, '_'], ''), ...
+                       strrep(row_rois{k1}, [hemi, '_'], ''), ...
                        'FontSize', 12);
 end
 

@@ -9,6 +9,10 @@ function analyze_pt2_seedOnly_cmat(hemi, netwName, meas, cmat_thresh, ...
 %                  carried out
 % Optional inputs: '--caww': Use corpus callosum avoidance, white-matter 
 %                            waypoint data
+%                  '--cw':   Use corpus callosum waypoint
+%                  '--cw':   Use corpus callosum waypoint, intended for
+%                            between-hemisphere tracking (not compatible
+%                            with --caww)
 %
 %%
 sIDs.PWS = {'S01', 'S04', 'S06', 'S07', 'S08', 'S09', 'S10', 'S12', 'S15',  ...
@@ -38,9 +42,18 @@ roiFigs.lh = '/users/cais/STUT/figures/rois_lh_flat_SLaparc.tif';
 roiFigs.rh = '/users/cais/STUT/figures/rois_rh_flat_SLaparc.tif';
             
 %%
+if isequal(hemi, 'xh') && ~bFold
+    error('Using bFold = 0 with hemi == xh');
+end
+
 bMaleOnly = ~isempty(fsic(varargin, 'maleOnly'));
 
-bCAWW = ~isempty(fsic(varargin, 'caww'));
+bCAWW = ~isempty(fsic(varargin, 'caww')) | ~isempty(fsic(varargin, '--caww'));
+bCW = ~isempty(fsic(varargin, 'cw')) | ~isempty(fsic(varargin, '--cw'));
+
+if bCAWW && bCW
+    error('Using incompatible options: --caww and --cw');
+end
 
 testName = 'ranksum';
 if ~isempty(fsic(varargin, 'ttest2'))
@@ -126,12 +139,15 @@ if bReload
             sID = sIDs.(grp){i2};
             fprintf(1, 'Loading data from subject (%s) %s...\n', grp, sID);
 
-            if ~bCAWW
-                mat_fn = fullfile(TRACT_RES_DIR, sID, ...
-                                  sprintf('connmats.%s.pt2.%s.mat', netwName, hemi));
-            else
+            if bCAWW
                 mat_fn = fullfile(TRACT_RES_DIR, sID, ...
                                   sprintf('connmats.%s.caww.pt2.%s.mat', netwName, hemi));
+            elseif bCW
+                mat_fn = fullfile(TRACT_RES_DIR, sID, ...
+                                  sprintf('connmats.%s.cw.pt2.%s.mat', netwName, hemi));
+            else
+                mat_fn = fullfile(TRACT_RES_DIR, sID, ...
+                                  sprintf('connmats.%s.pt2.%s.mat', netwName, hemi));
             end
             sdat = load(mat_fn);
             
@@ -146,6 +162,9 @@ if bReload
             for i3 = 1 : numel(sprois)
                 roi_ord(end + 1) = fsic(trans_h_rois, sprois{i3});
             end
+            
+            assert(length(roi_ord) == length(sprois));
+            assert(length(unique(roi_ord)) == length(sprois));
             
             if isequal(meas, 'tmn')
                 t_cmat = sdat.connmat_mean_norm;
@@ -272,12 +291,61 @@ if bFold
                 t_vec = [t_vec; t_mat(1 : k1 - 1, k1)];
             end
             
-            a_cvec.(grp) = [a_cvec.(grp); t_vec'];                     
+            a_cvec.(grp) = [a_cvec.(grp); t_vec'];    
+        end
+        
+        %--- Special processing for xh (cross-hemisphre) ---%    
+        if isequal(hemi, 'xh')
+            nr = size(a_cmat.(grp), 1) / 2;
+            
+            a_cvec.(grp) = [];
+
+            a_cmat_0 = a_cmat.(grp);
+            a_cmat.(grp) = nan(nr, nr, size(a_cmat.(grp), 3));
+
+            for i2 = 1 : size(a_cmat.(grp), 3)
+                % a_cmat_0(1 : nr, nr + 1 : 2 * nr, i2) should be identical to
+                % a_cmat_0(nr + 1 : 2 * nr, 1 : nr, i2)'
+                a_cmat.(grp)(:, :, i2) = a_cmat_0(1 : nr, nr + 1 : 2 * nr, i2);
+
+                t_mat = triu(a_cmat.(grp)(:, :, i2));
+                t_vec = [];
+                for k1 = 1 : nr
+                    t_vec = [t_vec; t_mat(1 : k1 - 1, k1)];
+                end
+
+                a_cvec.(grp) = [a_cvec.(grp); t_vec'];
+            end
         end
     end
         
     save(dsFN, 'a_cvec', '-append');
 end
+
+%% Process the ROI names for xh
+if isequal(hemi, 'xh')
+    sprois_rows = sprois(1 : nr);
+    sprois_cols = sprois(nr + 1 : 2 * nr);
+    
+    % Upper-case version
+    sprois_rows_uc = cell(size(sprois_rows));
+    sprois_cols_uc = cell(size(sprois_cols));
+    for i1 = 1 : numel(sprois_rows)
+        sprois_rows_uc{i1} = strrep(strrep(sprois_rows{i1}, 'lh_', 'L '), ...
+                                    'rh_', 'R ');
+        sprois_cols_uc{i1} = strrep(strrep(sprois_cols{i1}, 'lh_', 'L '), ...
+                                    'rh_', 'R ');
+    end
+    
+    sprois0 = sprois;
+    sprois = cell(1, length(sprois0) / 2);
+    for i1 = 1 : length(sprois0) / 2
+        sprois{i1} = sprois0{i1}(4 : end);
+    end
+    
+end
+
+nrois = length(sprois);
 
 %% Create the seed-by-seed vectors
 a_seedVec = struct;
@@ -366,7 +434,7 @@ sgn_rs = nan(nrois, nrois);
     p_SSI4_spr, rho_SSI4_spr, ...
     p_EHcomp_spr, rho_EHcomp_spr, ...
     p_rnSV_spr, rho_rnSV_spr] = ...
-        compare_cmats(a_cmat, bFold, testName, ...
+        compare_cmats(a_cmat, ~isequal(hemi, 'xh'), testName, ...
                       SSI4, EH_comp, rnSV);
                   
 if bRSFC
@@ -508,6 +576,8 @@ for i1 = 1 : nrois
         if p_rs(i1, i2) < p_thresh_unc
             med_PFS = median(squeeze(a_cmat.PFS(i1, i2, :)));
             med_PWS = median(squeeze(a_cmat.PWS(i1, i2, :)));
+            mean_PFS = mean(squeeze(a_cmat.PFS(i1, i2, :)));
+            mean_PWS = mean(squeeze(a_cmat.PWS(i1, i2, :)));
             
             if med_PWS < med_PFS
                 diffDir = '<';
@@ -526,8 +596,16 @@ for i1 = 1 : nrois
                 crlStr = '';
             end
             
+            if ~isequal(hemi, 'xh')
+                roi_name_1 = sprois{i1};
+                roi_name_2 = sprois{i2};
+            else
+                roi_name_1 = sprois_rows{i1};
+                roi_name_2 = sprois_cols{i2};
+            end
+            
             fprintf(1, '%s -> %s:\tmed = %f (PWS) %s %f (PFS); p = %e [%s]\n', ...
-                    sprois{i1}, sprois{i2}, ...
+                    roi_name_1, roi_name_2, ...
                     med_PWS, diffDir, med_PFS, p_rs(i1,i2), crlStr);
         end
     end
@@ -545,8 +623,16 @@ for i1 = 1 : nrois
                 corrDir = '+';
             end
             
+            if ~isequal(hemi, 'xh')
+                roi_name_1 = sprois{i1};
+                roi_name_2 = sprois{i2};
+            else
+                roi_name_1 = sprois_rows{i1};
+                roi_name_2 = sprois_cols{i2};
+            end
+            
             fprintf(1, '%s -> %s: p = %e (%s)\n', ...
-                    sprois{i1}, sprois{i2}, ...
+                    roi_name_1, roi_name_2, ...
                     p_SSI4_spr(i1,i2), corrDir);
         end
     end
@@ -752,28 +838,40 @@ xs = get(gca, 'XLim');
 ys = get(gca, 'YLim');
 
 % --- Labels for columns --- %
-ht_cols = nan(1, numel(sprois));
-ht_cols_top = nan(1, numel(sprois));
+if isequal(hemi, 'xh')
+    col_roi_names = sprois_cols_uc;
+else
+    col_roi_names = sprois;
+end
+
+ht_cols = nan(1, numel(col_roi_names));
+ht_cols_top = nan(1, numel(col_roi_names));
 horizontalAdjust = -0.10;
 verticalAdjust = 0.75;
-for k1 = 1 : numel(sprois)
+for k1 = 1 : numel(col_roi_names)
     ht_cols(k1) = text(k1, ...
-                       numel(sprois) + verticalAdjust, ...
-                       strrep(sprois{k1}, [hemi, '_'], ''), ...
+                       numel(col_roi_names) + verticalAdjust, ...
+                       strrep(col_roi_names{k1}, [hemi, '_'], ''), ...
                        'FontSize', 12);
     ht_cols_top(k1) = text(k1 + horizontalAdjust, ...
                            0, ...
-                           strrep(sprois{k1}, [hemi, '_'], ''), ...
+                           strrep(col_roi_names{k1}, [hemi, '_'], ''), ...
                            'FontSize', 12);
     set(ht_cols(k1), 'rotation', -90);
     set(ht_cols_top(k1), 'rotation', 90);
 end
 
 % --- Labels for rows --- %
-ht_rows = nan(1, numel(sprois));
-for k1 = 1 : numel(sprois)
+if isequal(hemi, 'xh')
+    row_roi_names = sprois_rows_uc;
+else
+    row_roi_names = sprois;
+end
+
+ht_rows = nan(1, numel(row_roi_names));
+for k1 = 1 : numel(row_roi_names)
     ht_rows(k1) = text(-horizontalPadding, k1, ...
-                       strrep(sprois{k1}, [hemi, '_'], ''), ...
+                       strrep(row_roi_names{k1}, [hemi, '_'], ''), ...
                        'FontSize', 12);
 end
 
@@ -801,7 +899,7 @@ check_file(figFN);
 fprintf(1, 'INFO: Saved 2-group mean cmat plot to file:\n\t%s\n', figFN);
 
 %% Draw ROI figures
-if bFold
+if ~isequal(hemi, 'xh') && bFold
     drawRoiPairs = struct;
 
     for i1 = 1 : numel(grps)
@@ -900,8 +998,14 @@ visParams = [figSize, verticalPadding, horizontalPadding, cellShift];
 sig_rs = sgn_rs .* -log10(p_rs);
 sig_rs(isnan(sig_rs)) = 0;
 
+if ~isequal(hemi, 'xh')
+    rois0 = sprois;
+else
+    rois0 = {sprois_rows_uc, sprois_cols_uc};
+end
+
 [nSigs_bgd, sigConns_bgd, sigVals_bgd] = ...
-    show_2d_mat(sig_rs, sprois, hemi, ...
+    show_2d_mat(sig_rs, rois0, hemi, ...
                 'Connectivity matrix difference', visParams, ...
                 'noShowChi2Test', 'colorBarBGC');
 assert(length(sigConns_bgd) == length(sigVals_bgd));
@@ -945,8 +1049,14 @@ fprintf(1, 'Saved to image file: %s\n', figFN);
 sig = sign(rho_SSI4_spr) .* -log10(p_SSI4_spr);
 sig(isnan(sig)) = 0;
 
+if ~isequal(hemi, 'xh')
+    rois0 = sprois;
+else
+    rois0 = {sprois_rows_uc, sprois_cols_uc};
+end
+
 [nSigs_corrSSI4, sigConns_corrSSI4] = ...
-    show_2d_mat(sig, sprois, hemi, ...
+    show_2d_mat(sig, rois0, hemi, ...
                 'Connectivity correlation with SSI4', visParams, ...
                 'noShowChi2Test', 'colorBarCorr');
 % nSigs_corrSSI4 = numel(sigConns_corrSSI4);
