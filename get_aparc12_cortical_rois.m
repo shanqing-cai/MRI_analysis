@@ -68,13 +68,25 @@ if ~isempty(fsic(varargin, 'lh'))
     hemi = 'lh';
 elseif ~isempty(fsic(varargin, 'rh'))
     hemi = 'rh';
+elseif ~isempty(fsic(varargin, 'xh'))
+    hemi = 'xh';
 else
     hemi = '';
 end
 
-if ~isempty(hemi)
+if ~isempty(hemi) && ~isequal(hemi, 'xh')
     for i1 = 1 : numel(roi_names)
         roi_names{i1} = [hemi, '_', roi_names{i1}];
+    end
+else
+    hemis = {'lh', 'rh'};
+    nr = length(roi_names);
+    roi_names = [roi_names, roi_names];
+    for i0 = 1 : numel(hemis)
+        t_hemi = hemis{i0};
+        for i1 = 1 : nr
+            roi_names{(i0 - 1) * nr + i1} = [t_hemi, '_', roi_names{(i0 - 1) * nr + i1}];
+        end
     end
 end
 
