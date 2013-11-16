@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 # gen_ccMask.py: Generate corpus callosum mask from FreeSufer autoseg
 # Author: Shanqing Cai
 # Date: 2013-02-17
