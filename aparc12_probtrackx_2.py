@@ -434,6 +434,14 @@ if __name__ == "__main__":
     if bCCAvoid:
         cmd += " --avoid=%s" % ccMask
 
+    #=== Write the command to text file: command.txt ===#
+    cmdTxtFN = os.path.join(outdir, "command.txt")
+    cmdTxtF = open(cmdTxtFN, "w")
+    cmdTxtF.write(cmd + "\n")
+    cmdTxtF.close()
+    check_file(cmdTxtFN)
+    info_log("Command saved to text file: %s" % cmdTxtFN)
+
     if not bNoProbtrackx:
         saydo(cmd)
 

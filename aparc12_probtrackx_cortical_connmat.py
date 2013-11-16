@@ -11,7 +11,6 @@ import nibabel as nb
 
 from scai_utils import *
 
-
 DATA_DIR = "/users/cais/STUT/DATA"
 TRACULA_BASE = "/users/cais/STUT/analysis/dti2/tracula"
 TRACTS_RES_DIR = "/users/cais/STUT/analysis/aparc12_tracts_2"
@@ -34,6 +33,8 @@ if __name__ == "__main__":
                     help="Speech network type (e.g., speech_PFS_lh)")
     ap.add_argument("--caww", dest="bCAWW", action="store_true", \
                     help="Corpus-callosum avoidance and ipsilateral WM waypoint mask")
+    ap.add_argument("--cw", dest="bCW", action="store_true", \
+                    help="Corpos-callosum waypoint (for cross-hemisphere tracking (not compatible with option --caww)")
     ap.add_argument("--pt2", dest="bpt2", action="store_true", \
                     help="Use probtrackx2 results")
     ap.add_argument("--oldver", dest="bOldVer", action="store_true",
@@ -49,8 +50,12 @@ if __name__ == "__main__":
     hemi = args.hemi
     bpt2 = args.bpt2
     bCAWW = args.bCAWW
+    bCW = args.bCW
     bSpeech = args.bSpeech
     speechMode = args.speechMode
+
+    if bCAWW and bCW:
+        raise Exeption, "Using incompatible options: --caww and --cw"
 
     if args.bOldVer:
         from aparc12_oldVer import get_aparc12_cort_rois
@@ -158,6 +163,8 @@ if __name__ == "__main__":
         roiResDir = os.path.join(sResDir, seedROI)
         if bCAWW:
             roiResDir += "_caww"
+        elif bCW:
+            roiResDir += "_cw"
 
         if bpt2:
             roiResDir += "_pt2"
@@ -193,60 +200,14 @@ if __name__ == "__main__":
             connmat_median[i0, i1] = np.median(img_dat[nzIdx[i1]])
             connmat_median_norm[i0, i1] = np.median(img_dat_n[nzIdx[i1]])
 
-        """
-        for (i1, targROI) in enumerate(h_rois):
-            if hemi == "xh":
-                if seedROI[:3] == targROI[:3]:
-                    continue # xh: Omit same-hemisphere projections
-
-            # Get mean
-            mean_cmd = "fslstats %s -k %s -m" % (fdtp, diff_roi_masks[i1])
-            (stdout, stderr) = Popen(mean_cmd.split(' '), \
-                                     stdout=PIPE, stderr=PIPE)\
-                               .communicate()
-            if len(stderr) > 0:
-                raise Exception, "Error occurred during %s" % mean_cmd
-            t_val = float(stdout.split(' ')[0])
-            connmat_mean[i0, i1] = t_val
-
-            # Get mean normalized by seed size
-            mean_norm_cmd = "fslstats %s -k %s -m" % (fdtpn, diff_roi_masks[i1])
-            (stdout, stderr) = Popen(mean_norm_cmd.split(' '), \
-                                     stdout=PIPE, stderr=PIPE)\
-                               .communicate()
-            if len(stderr) > 0:
-                raise Exception, "Error occurred during %s" % mean_norm_cmd
-            t_val = float(stdout.split(' ')[0])
-            connmat_mean_norm[i0, i1] = t_val
-
-            # Get median
-            med_cmd = "fslstats %s -k %s -p 50" % (fdtp, diff_roi_masks[i1])
-            (stdout, stderr) = Popen(med_cmd.split(' '), \
-                                     stdout=PIPE, stderr=PIPE)\
-                               .communicate()
-            if len(stderr) > 0:
-                raise Exception, "Error occurred during %s" % med_cmd
-            t_val = float(stdout.split(' ')[0])
-            connmat_median[i0, i1] = t_val
-
-            # Get normalized median
-            med_norm_cmd = "fslstats %s -k %s -p 50" \
-                           % (fdtpn, diff_roi_masks[i1])
-            (stdout, stderr) = Popen(med_norm_cmd.split(' '), \
-                                     stdout=PIPE, stderr=PIPE)\
-                               .communicate()
-            if len(stderr) > 0:
-                raise Exception, "Error occurred during %s" % med_norm_cmd
-            t_val = float(stdout.split(' ')[0])
-            connmat_median_norm[i0, i1] = t_val
-       """
-
     # Save results to mat file
-    resMatFN = os.path.join(sResDir, "connmats.%s.mat" % hemi)    
+    resMatFN = os.path.join(sResDir, "connmats.%s.mat" % hemi)
     if bpt2:
-        resMatFN = resMatFN.replace("connmats.", "connmats.pt2.") 
+        resMatFN = resMatFN.replace("connmats.", "connmats.pt2.")
     if bCAWW:
         resMatFN = resMatFN.replace("connmats.", "connmats.caww.")
+    if bCW:
+        resMatFN = resMatFN.replace("connmats.", "connmats.cw.")
     if speechMode != "":
         resMatFN = resMatFN.replace("connmats.", "connmats.%s." % speechMode)
 
