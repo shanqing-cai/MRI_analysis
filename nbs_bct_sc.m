@@ -216,8 +216,15 @@ ind_t=find(stat > THRESH);
 
 %Suprathreshold adjacency matrix
 ADJ=spalloc(N,N,length(ind_t)); 
-ADJ(ind(ind_t))=1; 
-ADJ=ADJ+ADJ';
+ADJ(ind(ind_t))=1;
+
+if bXH
+    ADJ_0 = ADJ;
+    ADJ = spalloc(N * 2, N * 2, length(ind_t) * 4);
+    ADJ(1 : N, N + 1 : 2 * N) = ADJ_0;
+end
+
+ADJ = ADJ + ADJ';
 
 bgl=0;
 if exist('components')==2
@@ -278,7 +285,10 @@ end
 %Empirically estimate null distribution of maximum compoent size by
 %generating K independent permutations. 
 fprintf('Estimating null distribution with permutation testing\n');
+
 hit=0;
+NULL = nan(1, K);
+
 for k=1:K
     %Randomise
     if isequal(testName, 'ttest2') || isequal(testName, 'ranksum')
@@ -398,7 +408,7 @@ for k=1:K
             hit=hit+1;
         end
         
-        fprintf(1, 'Perm (size) %d of %d. Perm max is: %d. Observed max is: %d. P-val estimate is: %0.3f\n', ...
+        fprintf(1, 'Perm (size) %d of %d. Perm max is: %d. Observed max is: %d. P-val estimate is: %0.4f\n', ...
                 k, K, NULL(k), max_sz, hit / k);
     else
         if ~isempty(sz_links_perm)
