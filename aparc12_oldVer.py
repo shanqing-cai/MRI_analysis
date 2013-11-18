@@ -38,7 +38,7 @@ aROIs = [   ['FP',     'Prefrontal',   'N'], \
             ['pSMg',   'PPC',          'N'], \
             ['PO',     'PPC',          'S'], \
             ['SPL',    'PPC',          'N'], \
-            ['Ag',     'PPC',          'N'], \
+            ['AG',     'PPC',          'N'], \
             ['PCN',    'PPC',          'N'], \
             ['TP',     'Temporal',     'N'], \
             ['PP',     'Temporal',     'S'], \
@@ -59,7 +59,7 @@ aROIs = [   ['FP',     'Prefrontal',   'N'], \
             ['OC',     'Occipital',    'N'], \
             ['MTO',    'Occipital',    'N'], \
             ['ITO',    'Occipital',    'N'], \
-            ['Lg',     'Occipital',    'N'], \
+            ['LG',     'Occipital',    'N'], \
             ['pPH',    'Parahippocampal',  'N'], \
             ['aPH',    'Parahippocampal',  'N'], \
             ['SCC',    'Parahippocampal',  'N']]
