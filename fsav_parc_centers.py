@@ -1,13 +1,13 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 import os
 import sys
 import tempfile
+import argparse
 from subprocess import Popen, PIPE
 
 from scai_utils import *
-from aparc12 import get_aparc12_cort_rois
-
+# from aparc12 import get_aparc12_cort_rois
 
 FSAV_DIR = "/users/cais/STUT/FSDATA/fsaverage2"
 APARC12_VOL = "/users/cais/STUT/FSDATA/fsaverage2/mri/aparcJT+aseg.mgz"
@@ -16,6 +16,20 @@ APARC12_CTAB = "/users/cais/STUT/slaparc_550.ctab"
 hemis = ["lh", "rh"]
 
 if __name__ == "__main__":
+    ap = argparse.ArgumentParser("Generate the center of ROIs in template subject: %s" % FSAV_DIR)
+    ap.add_argument("--oldver", dest="bOldVer", action="store_true", 
+                    help="Use the old version of aparc12")
+
+    if len(sys.argv) == 1:
+        ap.print_help()
+        sys.exit(1)
+
+    args = ap.parse_args()
+    if args.bOldVer:
+        from aparc12_oldVer import get_aparc12_cort_rois
+    else:
+        from aparc12 import get_aparc12_cort_rois
+
     check_dir(FSAV_DIR)
     check_file(APARC12_VOL)
     check_file(APARC12_CTAB)
