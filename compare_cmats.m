@@ -48,7 +48,7 @@ end
 
 for i1 = 1 : nrois
     for i2 = 1 : nrois
-        if i1 == i2
+        if (i1 == i2) && bFold
             continue;
         end
         

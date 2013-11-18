@@ -16,7 +16,7 @@ if ~isempty(fsic(varargin, 'testName'))
 end
 
 fprintf(1, '=== Significant differences in %s: p_thresh (unc.) = %f ===\n', ...
-        behavName, p_thresh);
+        measName, p_thresh);
 for i1 = 1 : nrois
     if isequal(testName, 'ttest2')
         [tt_h, tt_p, ~, tt_stats] = ...

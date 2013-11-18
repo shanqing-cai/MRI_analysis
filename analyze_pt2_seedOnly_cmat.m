@@ -1,7 +1,13 @@
 function analyze_pt2_seedOnly_cmat(hemi, netwName, meas, cmat_thresh, ...
                                    bFold, bReload, varargin)
 %%
-% Inputs: meas - measure to analyze {'tmn', 'wtn'}
+% Inputs:
+%        hemi - hemisphere: 
+%                   lh - left hemisphere; rh - right hemisphere;
+%                   xh - left-right (cross)
+%                   bh - both hemisphere (combines lh, rh and xh into full
+%                        connectivity matrix)
+%        meas - measure to analyze {'tmn', 'wtn'}
 %        cmat_thresh - threshold for binary global efficiency analysis
 %        bFold - whether each individual subject's matrix should be
 %                transposed and average with itself.
@@ -9,7 +15,6 @@ function analyze_pt2_seedOnly_cmat(hemi, netwName, meas, cmat_thresh, ...
 %                  carried out
 % Optional inputs: '--caww': Use corpus callosum avoidance, white-matter 
 %                            waypoint data
-%                  '--cw':   Use corpus callosum waypoint
 %                  '--cw':   Use corpus callosum waypoint, intended for
 %                            between-hemisphere tracking (not compatible
 %                            with --caww)
@@ -126,6 +131,11 @@ if bRSFC
 end
 
 %%
+if isequal(hemi, 'bh');
+    load_hemis = {'lh', 'rh','xh'};
+else
+    load_hemis = {hemi};
+end
 if bReload
     a_cmat = struct;    
 
@@ -138,18 +148,44 @@ if bReload
         for i2 = 1 : numel(sIDs.(grp))
             sID = sIDs.(grp){i2};
             fprintf(1, 'Loading data from subject (%s) %s...\n', grp, sID);
-
-            if bCAWW
-                mat_fn = fullfile(TRACT_RES_DIR, sID, ...
-                                  sprintf('connmats.%s.caww.pt2.%s.mat', netwName, hemi));
-            elseif bCW
-                mat_fn = fullfile(TRACT_RES_DIR, sID, ...
-                                  sprintf('connmats.%s.cw.pt2.%s.mat', netwName, hemi));
-            else
-                mat_fn = fullfile(TRACT_RES_DIR, sID, ...
-                                  sprintf('connmats.%s.pt2.%s.mat', netwName, hemi));
+                                   
+            mat_fns = cell(1, numel(load_hemis));
+            mats = cell(1, numel(load_hemis));
+            for kk = 1 : numel(load_hemis)
+                if bCW && isequal(load_hemis{kk}, 'xh')
+                    mat_fns{kk} = fullfile(TRACT_RES_DIR, sID, ...
+                                          sprintf('connmats.%s.cw.pt2.%s.mat', ...
+                                                  netwName, load_hemis{kk}));
+                elseif bCAWW
+                    mat_fns{kk} = fullfile(TRACT_RES_DIR, sID, ...
+                                          sprintf('connmats.%s.caww.pt2.%s.mat', ...
+                                                  netwName, load_hemis{kk}));
+                
+                else
+                    mat_fns{kk} = fullfile(TRACT_RES_DIR, sID, ...
+                                          sprintf('connmats.%s.pt2.%s.mat', ...
+                                                  netwName, load_hemis{kk}));
+                end
+                
+                mats{kk} = load(mat_fns{kk});
+                
             end
-            sdat = load(mat_fn);
+            
+            if isequal(hemi, 'bh')
+                sdat = mats{3};
+                t_flds = fields(sdat);
+                for kk = 1 : numel(t_flds) % Merge connectivity matrices
+                    t_fld = t_flds{kk};
+                    if length(t_fld) > 8 && isequal(t_fld(1 : 8), 'connmat_')
+                        sdat.(t_fld)(1 : end / 2, 1 : end / 2) = mats{1}.(t_fld);
+                        sdat.(t_fld)(end / 2 + 1 : end, end / 2 + 1 : end) = mats{2}.(t_fld);
+                    end
+                end                
+                
+                                            
+            else
+                sdat = mats{1};
+            end
             
             % -- Makes sure that the ROIs match -- %
             roi_ord = [];
@@ -158,26 +194,28 @@ if bReload
                 t_roi_name = translate_roi_name(deblank(sdat.h_rois(i3, :)));
                 trans_h_rois{end + 1} = t_roi_name;
             end
-            
+
             for i3 = 1 : numel(sprois)
                 roi_ord(end + 1) = fsic(trans_h_rois, sprois{i3});
             end
-            
+
             assert(length(roi_ord) == length(sprois));
             assert(length(unique(roi_ord)) == length(sprois));
-            
+
             if isequal(meas, 'tmn')
                 t_cmat = sdat.connmat_mean_norm;
             end
-                        
+
             if size(t_cmat, 1) ~= nrois
                 error('Mismatch between nrois = %d and matrix size in: %s', ...
                       nrois, mat_fn);
             end
-            
+
             a_roi_ord = [a_roi_ord; roi_ord];
             t_cmat = t_cmat(roi_ord, roi_ord); % -- Fix the order -- %
             a_cmat.(grp)(:, :, i2) = t_cmat;
+            
+            
     %         figplot(t_cmat_tmn(:), t_cmat_wtn(:), 'bo');
         end
     end
@@ -442,7 +480,7 @@ if bRSFC
         p_SSI4_spr_rsfc, rho_SSI4_spr_rsfc, ...
         p_EHcomp_spr_rsfc, rho_EHcomp_spr_rsfc, ...
         p_rnSV_spr_rsfc, rho_rnSV_spr_rsfc] = ...
-            compare_cmats(corrDat.cms, bFold, testName, ...
+            compare_cmats(corrDat.cms, ~isequal(hemi, 'xh'), testName, ...
                           SSI4, EH_comp, rnSV);
 end
 
@@ -482,12 +520,12 @@ if ~isempty(fsic(varargin, '--randPerm'))
         
         if ~bPermSSI4
             [rp_p_rs(:, :, i1), rp_sgn_rs(:, :, i1)] = ...
-                compare_cmats(a_cmat, bFold, testName, '--randPerm');
+                compare_cmats(a_cmat, ~isequal(hemi, 'xh'), testName, '--randPerm');
         else
             [rp_p_rs(:, :, i1), rp_sgn_rs(:, :, i1), ...
                 rp_p_SSI4_spr(:, :, i1), rp_rho_SSI4_spr(:, :, i1), ...
                 ~, ~, ~, ~] = ...
-                compare_cmats(a_cmat, bFold, testName, ...
+                compare_cmats(a_cmat, ~isequal(hemi, 'xh'), testName, ...
                               SSI4, EH_comp, rnSV, '--randPerm');
         end
 
@@ -546,7 +584,7 @@ if ~isempty(fsic(varargin, 'randPermPWS'))
             fprintf(1, 'Performing random permutation (PWS) %d of %d...\n', i1, nRandPermPWS);
         end
         [~, ~, rp_p_SSI4_spr(:, :, i1), rp_rho_SSI4_spr(:, :, i1), ~, ~, ~, ~] = ...
-            compare_cmats(a_cmat, bFold, testName, SSI4, EH_comp, rnSV, '--randPermPWS');
+            compare_cmats(a_cmat, ~isequal(hemi, 'xh'), testName, SSI4, EH_comp, rnSV, '--randPermPWS');
 
 %         pnSigs(i1, 1) = numel(find(rp_p_SSI4_spr(:, :, i1) < 0.05 & rp_rho_SSI4_spr(:, :, i1) > 0));
 %         pnSigs(i1, 2) = numel(find(rp_p_SSI4_spr(:, :, i1) < 0.05 & rp_rho_SSI4_spr(:, :, i1) < 0));
@@ -784,11 +822,6 @@ fprintf(1, 'Linear correl. with SSI4 (PWS): r = %f, p = %e\n\n', ...
         r_lc_wge_SSI4, p_lc_wge_SSI4);   
 
 %% Compute and visualize the average cmats and significance of differences
-
-% figSize = 800;
-% verticalPadding = 2.5;
-% horizontalPadding = 1.5;
-
 figSize = 600;
 verticalPadding = 3.25;
 horizontalPadding = 2.5;
@@ -815,7 +848,11 @@ end
 
 save(dsFN, 'mn_cmat', '-append');
 
-vis_mn_cmat_2g = vis_mn_cmat.PWS + vis_mn_cmat.PFS;
+if ~isequal(hemi, 'xh')
+    vis_mn_cmat_2g = vis_mn_cmat.PWS + vis_mn_cmat.PFS;
+else
+    vis_mn_cmat_2g = mn_cmat.PFS;
+end
 
 imagesc(vis_mn_cmat_2g);
 hold on;
@@ -899,7 +936,7 @@ check_file(figFN);
 fprintf(1, 'INFO: Saved 2-group mean cmat plot to file:\n\t%s\n', figFN);
 
 %% Draw ROI figures
-if ~isequal(hemi, 'xh') && bFold
+if ~isequal(hemi, 'xh') && ~isequal(hemi, 'bh') && bFold
     drawRoiPairs = struct;
 
     for i1 = 1 : numel(grps)
@@ -945,10 +982,17 @@ if ~isempty(fsic(varargin, '--NBS'))
     % -- Between group comparison -- %
 %     [nbs_pval, adj] = nbs_bct_sc(a_cmat.PWS, a_cmat.PFS, 'ranksum', -log10(nbs_edgeThr), ...
 %                                  nbs_nIters, nbs_tail, '--sum');
-	[nbs_pval, adj] = nbs_bct_sc(a_cmat.PWS, SSI4, 'spear', ...
+    if isequal(hemi, 'xh')
+        xh_opt = '--xh';
+    else
+        xh_opt = '--non-xh';
+    end
+    [nbs_pval, adj] = nbs_bct_sc(a_cmat.PWS, SSI4, 'spear', ...
                                  -log10(nbs_edgeThr), ...
-                                 nbs_nIters, nbs_tail, '--sum'); % TESTING
-
+                                 nbs_nIters, nbs_tail, '--sum', ...
+                                 xh_opt);
+    
+                             
     % -- Write significant components to file -- % 
     sigCompCnt = 1;
     for i1 = 1 : numel(nbs_pval)
