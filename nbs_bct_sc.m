@@ -77,6 +77,9 @@ function [PVAL,ADJ,NULL]=nbs_bct_sc(X, Y, testName, THRESH, K, TAIL, varargin)
 %
 %                 (2013-05-01) Shanqing Cai , shanqing.cai@gmail.com
 %                   Enabled the --sum option
+%                
+%                 (2013-11-17) Shanqing Cai, shanqing.cai@gmail.com
+%                   Adding option --xh for cross-hemisphere mode
 
 
 %Error checking
@@ -91,6 +94,8 @@ if nargin<5
 end    
 
 bSum = ~isempty(fsic(varargin, '--sum'));
+
+bXH = ~isempty(fsic(varargin, '--xh'));
 
 %% -- Make sure that testName is valid -- %
 if ~isequal(testName, 'ttest2') && ~isequal(testName, 'ranksum') ...
@@ -129,7 +134,11 @@ end
 N=Ix;
 
 %Only consider elements above upper diagonal due to symmetry
-ind=find(triu(ones(N,N),1));
+if ~bXH
+    ind = find(triu(ones(N,N),1));
+else
+    ind = find(ones(N, N));
+end
 
 %Number of edges
 M=length(ind);
@@ -318,12 +327,24 @@ for k=1:K
     if bSum
         t_statf = zeros(N, N);
         t_statf(ind) = t_stat_perm;
+        
+        if bXH
+            t_statf_0 = t_statf;
+            t_statf = zeros(2 * N, 2 * N);
+            t_statf(1 : N, N + 1 : 2 * N) = t_statf_0;
+        end
     end
     
     %Suprathreshold adjacency matrix
     adj_perm=spalloc(N,N,length(ind_t));
     adj_perm(ind(ind_t))=1;
-    adj_perm=adj_perm+adj_perm';
+    
+    if bXH
+        adj_perm_0 = adj_perm;
+        adj_perm = spalloc(N * 2, N * 2, length(ind_t) * 4);
+        adj_perm(1 : N, N + 1 : 2 * N) = adj_perm_0;        
+    end
+    adj_perm = adj_perm + adj_perm';
 
     %Find size of network components   
     if bgl==1
@@ -354,6 +375,7 @@ for k=1:K
 
             for i2 = 1 : length(idxcmp)
                 if t_statf(idxcmp(i2)) ~= 0
+                    assert(t_statf(idxcmp(i2)) ~= 0);
                     t_sums(i1) = t_sums(i1) + t_statf(idxcmp(i2));
                 end
             end
