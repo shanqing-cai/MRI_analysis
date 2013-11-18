@@ -978,6 +978,7 @@ if ~isempty(fsic(varargin, '--NBS'))
     nbs_edgeThr = varargin{fsic(varargin, '--NBS') + 1};
     nbs_nIters = varargin{fsic(varargin, '--NBS') + 2};
     nbs_tail = varargin{fsic(varargin, '--NBS') + 3};
+    nbs_bSum = ~isempty(fsic(varargin, '--NBS-sum'));
     
     % -- Between group comparison -- %
 %     [nbs_pval, adj] = nbs_bct_sc(a_cmat.PWS, a_cmat.PFS, 'ranksum', -log10(nbs_edgeThr), ...
@@ -987,11 +988,17 @@ if ~isempty(fsic(varargin, '--NBS'))
     else
         xh_opt = '--non-xh';
     end
+    
+    if nbs_bSum
+        sum_opt = '--sum';
+    else
+        sum_opt = '--non-sum';
+    end
+    
     [nbs_pval, adj] = nbs_bct_sc(a_cmat.PWS, SSI4, 'spear', ...
                                  -log10(nbs_edgeThr), ...
-                                 nbs_nIters, nbs_tail, '--sum', ...
+                                 nbs_nIters, nbs_tail, sum_opt, ...
                                  xh_opt);
-    
                              
     % -- Write significant components to file -- % 
     sigCompCnt = 1;
@@ -999,7 +1006,7 @@ if ~isempty(fsic(varargin, '--NBS'))
         if nbs_pval(i1) < NBS_COMPONENT_P_THRESH
             txtfn = sprintf('corrSSI4_%s_sigComponent_%d.txt', hemi, sigCompCnt);
             [t_nEdges, t_nNodes] = ...
-                write_netw_component_txt(adj, i1, sprois, p_SSI4_spr, txtfn);
+                write_netw_component_txt(adj, i1, sprois, p_SSI4_spr, txtfn, xh_opt);
             
             check_file(txtfn);
             fprintf(1, 'INFO: corrSSI4: significant component #%d (nEdges=%d; nNodes=%d) saved to ASCII file:\n\t%s\n', ...
