@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 import os
 import sys
@@ -31,9 +31,14 @@ if __name__ == "__main__":
                     help="Opacity of 3D tubes (default=%f)" % DEFAULT_OPACITY)
     ap.add_argument("--noText", dest="bNoText", action="store_true", \
                     help="Do not plot the 3D text")
+    ap.add_argument("--struct-vol", dest="altStructVol", type=str, 
+                    help="Specify STRUCT_VOL that differs from the default: %s"% STRUCT_VOL)
+    ap.add_argument("--coord-file", dest="altCoordFile", type=str, 
+                    help="Specify coordinates file that differs from the default: %s" % COORD_FILE)
 
     if len(sys.argv) == 1:
         ap.print_help()
+        sys.exit(1)
 
     # === Parse input arguments === #
     args = ap.parse_args()
@@ -43,8 +48,14 @@ if __name__ == "__main__":
     t_opacity = args.t_opacity
     bNoText = args.bNoText
     
-    if not (hemi == "lh" or hemi == "rh"):
+    if not (hemi == "lh" or hemi == "rh" or hemi == "bh" or hemi == "xh"):
         raise Exception, "Unexpected hemi: %s" % hemi
+
+    if args.altStructVol != None:
+        STRUCT_VOL = args.altStructVol
+
+    if args.altCoordFile != None:
+        COORD_FILE = args.altCoordFile
 
     # print(hemi) # DEBUG
 
