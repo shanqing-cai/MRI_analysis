@@ -770,6 +770,14 @@ fprintf(1, 'INFO: Saved node CC figure to file:\n\t%s\n', figFN_CC);
 % check_file(figFN);
 % fprintf(1, 'INFO: Node BC between-group comparison results saved to file %s\n', figFN);
 
+%% BCT: write the node-level graph theory measures to text file
+nodeGraphTheoryMeasFN = sprintf('nodeGraphTheory_meas.%s.%s.%s.txt', ...
+                                         hemi, netwName, meas);
+writeNodeGraphTheoryMeasTxt(nodeGraphTheoryMeasFN, sprois, ...
+                            a_strengths, p_strengths, ...
+                            a_bc, p_bc, ...
+                            a_cc, p_cc);
+
 %% BCT (Graph theory) analysis: Binary global efficiency
 efb = struct;
 for i1 = 1 : numel(grps)
