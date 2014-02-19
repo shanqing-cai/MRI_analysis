@@ -6,7 +6,7 @@ assert(isfield(dat.a_cmat, grp));
 nROIs = length(dat.sprois);
 nEntries = (1 + nROIs) * nROIs / 2;
 
-A = cell(nEntries, 3);
+A = cell(nEntries + 1, 3);
 A(1, :) = {'ROI1', 'ROI2', 'TMN'};
 
 
