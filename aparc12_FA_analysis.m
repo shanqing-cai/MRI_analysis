@@ -43,18 +43,18 @@ LINCORR_P_THRESH_UC = 0.05;
 %                   'lh_H',   'rh_H', ...
 %                   'lh_pSTg', 'rh_pSTg', ...
 %                   'lh_PT', 'rh_PT'};
-ROIS_BEHAVCORR = {};
+% ROIS_BEHAVCORR = {};
 
 hemis = {'lh', 'rh'};
 
-t_rois = get_aparc12_cortical_rois('speech');
-for i1 = 1 : numel(hemis)
-    hemi = hemis{i1};
-    
-    for i2 = 1 : numel(t_rois)
-        ROIS_BEHAVCORR{end + 1} = sprintf('%s_%s', hemi, t_rois{i2});
-    end
-end
+% t_rois = get_aparc12_cortical_rois('speech');
+% for i1 = 1 : numel(hemis)
+%     hemi = hemis{i1};
+%     
+%     for i2 = 1 : numel(t_rois)
+%         ROIS_BEHAVCORR{end + 1} = sprintf('%s_%s', hemi, t_rois{i2});
+%     end
+% end
 
 % ROIS_sel = {'lh.iFo', 'lh.vPMC', 'lh.vMC', 'lh.aCO', 'lh.vSSC', ...
 %                 'lh.H', 'lh.PT'};
@@ -62,6 +62,7 @@ ROIS_sel = {'lh_vIFo', 'lh_vPMC', 'lh_vMC', 'lh_aCO', 'lh_vSC', ...
             'lh_H', 'lh_PT'};
 % ROIS_sel = {'lh_aIFs', 'lh_vIFo', 'lh_vPMC', 'lh_vMC', 'lh_aCO', 'lh_vSC', ...
 %             'lh_H', 'lh_PT'};
+
                             
 %% Config: visualization
 colors.PWS = 'r';
@@ -90,16 +91,40 @@ end
 hiliteROIClr = [0.5, 1, 0];
 drawBndClr = [0, 1.0, 0];
 
+%% Config: alternative ROI names, for dealing with ROI name changes
+altROINames = {'Ag', 'AG'; ...               
+               'Hg', 'H'; ...
+               'aCGg', 'aCG'; ...
+               'midCGg', 'midCG'; ...
+               'pCGg', 'pCG'; ...
+               'ITOg', 'ITO'; ...
+               'MTOg', 'MTO'; ...
+               'Lg', 'LG'};
+
 %% Get aparc12 ROI names
 %if nargin == 0
     roi_names_0 = get_aparc12_cortical_rois;
-    roi_names = {};
-    
-    for hemi = {'lh', 'rh'};
-        for i1 = 1 : numel(roi_names_0)
-            roi_names{end + 1} = [hemi{1}, '_', roi_names_0{i1}];
+    if length(roi_names_0{1}) > 3 ...
+            && (isequal(roi_names_0{1}(1 : 3), 'lh_') ...
+                || isequal(roi_names_0{1}(1 : 3), 'rh_'))
+        roi_names = roi_names_0;
+        
+    else
+        roi_names = {};
+
+        for hemi = {'lh', 'rh'};
+            for i1 = 1 : numel(roi_names_0)
+%                 if ~(length(roi_names_0{i1}) > 3 ...
+%                      && (isequal(roi_names_0{i1}(1 : 3), 'lh_') ...
+%                          || isequal(roi_names_0{i1}(1 : 3), 'rh_')))
+                    roi_names{end + 1} = [hemi{1}, '_', roi_names_0{i1}];
+%                 else
+%                     roi_names{end + 1} = roi_names_0{i1};
+%                 end
+            end
         end
     end
+    ROIS_BEHAVCORR = roi_names;
 %end
 
 %% Get behavioral measures
@@ -129,8 +154,8 @@ end
 
 %%
 nROIs = length(roi_names);
-fa.PWS = nan(nROIs, numel(sIDs.PWS));
-fa.PFS = nan(nROIs, numel(sIDs.PFS));
+measDat.PWS = nan(nROIs, numel(sIDs.PWS));
+measDat.PFS = nan(nROIs, numel(sIDs.PFS));
 
 for h1 = 1 : nROIs
     t_roi = roi_names{h1};
@@ -145,21 +170,43 @@ for h1 = 1 : nROIs
             if ~isfile(matfn)
                 error('Cannot find mat file: %s', matfn)
             end
-            load(matfn); % gives rois, meanfa
+            load(matfn); % gives rois, meanfa (or meanMD, meanRD, meanL1)
 
             iroi = strmatch(t_roi, rois, 'exact');
+            
+            % --- Deal with ROI name changes --- %
+%             if isequal(t_roi(end - 1 : end), 'Hg')
+%                 iroi = [iroi, strmatch(strrep(t_roi, 'Hg', 'H'), rois, 'exact')];
+%             end
+            t_roi_0 = strrep(strrep(t_roi, 'lh_', ''), 'rh_', '');
+            if ~isempty(fsic(altROINames(:, 1), t_roi_0))
+                irow = fsic(altROINames(:, 1), t_roi_0);
+                for k1 = 2 : size(altROINames, 2)
+                    t_roi_alt = strrep(t_roi, altROINames{irow, 1}, ...
+                                       altROINames{irow, k1});
+                    iroi = [iroi, strmatch(t_roi_alt, rois, 'exact')];
+                end
+            end
+    
+                        
             if isempty(iroi)
                 fprintf('WARNING: Failed to find the ROI %s in the %d-mm data of subject %s\n', ...
                         t_roi, xmm, sID);
                 continue;
+            elseif length(iroi) > 1
+                fprintf('WARNING: More than one entries for ROI %s found in the %d-mm data of subject %s. Will use the first one.\n', ...
+                        t_roi, xmm, sID);
+                iroi = iroi(1);
             end
 
             if isequal(meas, 'FA')
-                fa.(grp)(h1, i2) = meanfa(iroi);
+                measDat.(grp)(h1, i2) = meanfa(iroi);
             elseif isequal(meas, 'L1')
-                fa.(grp)(h1, i2) = meanL1(iroi);
+                measDat.(grp)(h1, i2) = meanL1(iroi);
             elseif isequal(meas, 'RD')
-                fa.(grp)(h1, i2) = meanRD(iroi);
+                measDat.(grp)(h1, i2) = meanRD(iroi);
+            elseif isequal(meas, 'MD')
+                measDat.(grp)(h1, i2) = meanMD(iroi);
             else
                 error('Unrecognized measure type: %s', meas);
             end
@@ -173,8 +220,8 @@ t_vals_byROI = nan(nROIs, 1);
 sig_vals_byROI = nan(nROIs, 1);
 
 for i1 = 1 : nROIs
-    xs_PWS = fa.PWS(i1, :);
-    xs_PFS = fa.PFS(i1, :);
+    xs_PWS = measDat.PWS(i1, :);
+    xs_PFS = measDat.PFS(i1, :);
     
     [h, p, ci, stats] = ttest2(xs_PWS, xs_PFS);
     
@@ -213,7 +260,7 @@ for i1 = 1 : numel(grps)
         i_roi = fsic(roi_names, t_roi);
         
         if length(i_roi) == 1
-            roi_mean_fa.(grp)(:, i2) = fa.(grp)(i_roi, :)';
+            roi_mean_fa.(grp)(:, i2) = measDat.(grp)(i_roi, :)';
         else
             fprintf(2, 'WARNING: Cannot find data for ROI %s for behavioral correlation.\n', ...
                     t_roi);
@@ -222,7 +269,7 @@ for i1 = 1 : numel(grps)
 end
 roi_mean_fa_2g = [roi_mean_fa.PWS; roi_mean_fa.PFS];
 
-%% Correlation between FA and SSI4
+%% Correlation between the measure and SSI4
 [p_SSI4_corr_PWS, r_SSI4_corr_PWS] = corr_rois(roi_mean_fa.PWS, SSI4.PWS);
 
 hashROIs.lh = {};
@@ -230,7 +277,8 @@ hashROIs.rh = {};
 hashROISigns.lh = [];
 hashROISigns.rh = [];
 
-fprintf(1, '=== Significant correlations between ROI-mean FA and SSI4 ===\n');
+fprintf(1, '=== Significant correlations between ROI-mean %s and SSI4 ===\n', ...
+           meas);
 for i1 = 1 : numel(ROIS_BEHAVCORR)
     if (p_SSI4_corr_PWS(i1) < LINCORR_P_THRESH_UC)
         fprintf(1, '%s: p = %.4f; r = %.3f\n', ...
@@ -288,7 +336,7 @@ for i1 = 1 : numel(hemis)
     imDiv = imread(roiFigsDiv.(hemi));
     imText = imread(roiFigsText.(hemi));
     
-    imFASigMap.(hemi) = ...
+    imSigMap.(hemi) = ...
         fill_aparc12_roi_fig(imBase, imDiv, imText, hemi, ...
                              t_fillROIs, 'fillClrs', t_fillClrs, ...
                              'clrNameROIs', hiliteROIs, hiliteROIClrs, ...
@@ -306,15 +354,15 @@ for i1 = 1 : numel(hemis)
     clrBarLenFact = 3;
     clrBarWidth = 20;
     
-    imFASigMap.(hemi) = draw_colorbar(imFASigMap.(hemi), cm, ...
+    imSigMap.(hemi) = draw_colorbar(imSigMap.(hemi), cm, ...
         [clrBarX, clrBarY], clrBarLenFact, clrBarWidth, ...
         'tickIdx', tickSigIdx);
     
 	% -- Visualize -- %
-	hf_faSigMap.(hemi) = figure('Name', sprintf('FA sig value map: %s', hemi), ...
+	hf_faSigMap.(hemi) = figure('Name', sprintf('%s sig value map: %s', meas, hemi), ...
                                 'Color', defaultFigClr);
     
-    imshow(imFASigMap.(hemi));
+    imshow(imSigMap.(hemi));
     hold on;
     
 %     for j1 = 1 : length(tickSigIdx)
@@ -328,7 +376,7 @@ for i1 = 1 : numel(hemis)
                      sprintf('aparc12_%s.%dmm.%s.tif', meas, xmm, hemi));
     saveas(hf_faSigMap.(hemi) , figFN, 'tif');
     check_file(figFN);
-    fprintf(1, 'Saved FA to image file: %s\n', figFN);
+    fprintf(1, 'Saved %s data to image file: %s\n', meas, figFN);
 end
 
 
@@ -371,21 +419,21 @@ p_uc = nan(1, numel(ROIS_sel)); % Uncorrected p-value
 for i1 = 1 : numel(ROIS_sel)
     t_ROI = ROIS_sel{i1};
     idx_roi = fsic(roi_names, t_ROI);
-    t_FA_PWS = fa.PWS(idx_roi, :);
-    t_FA_PFS = fa.PFS(idx_roi, :);
-    bar(i1 - barW / 2, mean(t_FA_PFS), barW, 'FaceColor', 'none', ...
+    t_meas_PWS = measDat.PWS(idx_roi, :);
+    t_meas_PFS = measDat.PFS(idx_roi, :);
+    bar(i1 - barW / 2, mean(t_meas_PFS), barW, 'FaceColor', 'none', ...
         'EdgeColor', colors.PFS, 'LineWidth', 1);
     hold on;
-    plot(repmat(i1 - barW / 2, 1, 2), mean(t_FA_PFS) + [-1, 1] * ste(t_FA_PFS), ...
+    plot(repmat(i1 - barW / 2, 1, 2), mean(t_meas_PFS) + [-1, 1] * ste(t_meas_PFS), ...
          'Color', colors.PFS, 'LineWidth', 1);
-    bar(i1 + barW / 2, mean(t_FA_PWS), barW, 'FaceColor', 'none', ...
+    bar(i1 + barW / 2, mean(t_meas_PWS), barW, 'FaceColor', 'none', ...
         'EdgeColor', colors.PWS, 'LineWidth', 1);
-    plot(repmat(i1 + barW / 2, 1, 2), mean(t_FA_PWS) + [-1, 1] * ste(t_FA_PWS), ...
+    plot(repmat(i1 + barW / 2, 1, 2), mean(t_meas_PWS) + [-1, 1] * ste(t_meas_PWS), ...
          'Color', colors.PWS, 'LineWidth', 1);
 
     xTickLabel{end + 1} = strrep(strrep(t_ROI, 'lh.', ''), 'rh.', '');
 
-    [h_t, p_t] = ttest2(t_FA_PFS, t_FA_PWS);
+    [h_t, p_t] = ttest2(t_meas_PFS, t_meas_PWS);
     if p_t < 0.05
         plot(i1 + [-0.5, 0.5] * barW, repmat(yLim(2) - 0.075 * range(yLim), 1, 2), ...
              'b-', 'LineWidth', 1);
@@ -407,9 +455,9 @@ end
 set(gca, 'XLim', [0.25, numel(ROIS_sel) + 0.75]);
 set(gca, 'XTick', 1 : numel(ROIS_sel), 'XTickLabel', xTickLabel);
 set(gca, 'YLim', yLim);
-ylabel('ROI FA (mean\pm1 SE)', 'FontSize', fontSize);      
+ylabel(sprintf('ROI %s (mean\pm1 SE)', meas), 'FontSize', fontSize);      
 
 %% Analysis and visualization
-% meta_comp2(fa, sprintf('Mean FA'));
+% meta_comp2(measDat, sprintf('Mean FA'));
 
 return        

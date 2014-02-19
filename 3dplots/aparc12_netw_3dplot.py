@@ -21,6 +21,14 @@ DEFAULT_OPACITY=1.0
 
 COMPONENT_CLRS = [(1.0, 0.75, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0)]
 
+def translate_roi_name(roiName):
+    if roiName.count("_Hg") > 0:
+        return roiName.replace("_Hg", "_H")
+    elif roiName.count("_aCGg") > 0:
+        return roiName.replace("_aCGg", "_aCG")
+    else:
+        return roiName
+
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description="Render 3D network component image based on an input component file (from analyze_pt2_seedOnly_cmat.m. The thickness of the tubes are proportional to the sig value in the component file")
     ap.add_argument("componentFile", type=str)
@@ -35,6 +43,15 @@ if __name__ == "__main__":
                     help="Specify STRUCT_VOL that differs from the default: %s"% STRUCT_VOL)
     ap.add_argument("--coord-file", dest="altCoordFile", type=str, 
                     help="Specify coordinates file that differs from the default: %s" % COORD_FILE)
+    ap.add_argument("--translate-roi-name", dest="bTranslateROIName", 
+                    action="store_true", 
+                    help="Translate ROI names for old-version of aparc12")
+    ap.add_argument("--no-edges", dest="bNoEdges", 
+                    help="Do not render the edges of the network")
+    ap.add_argument("--vmax", dest="vmax", type=float, default=1600, 
+                    help="vmax for brain volume rendering (default: 1600)")
+    ap.add_argument("--cross-only", dest="bCrossOnly", action="store_true", 
+                    help="Draw only cross-hemisphere connections (for hemi == bh or xh only)")
 
     if len(sys.argv) == 1:
         ap.print_help()
@@ -42,11 +59,15 @@ if __name__ == "__main__":
 
     # === Parse input arguments === #
     args = ap.parse_args()
+
     componentFile = args.componentFile
     outputImgFN = args.outputImgFN
     hemi = args.hemi
     t_opacity = args.t_opacity
     bNoText = args.bNoText
+
+    if args.bCrossOnly and not (hemi == "bh" or hemi == "xh"):
+        error_log("--cross-only used with hemi other than bh or xh")
     
     if not (hemi == "lh" or hemi == "rh" or hemi == "bh" or hemi == "xh"):
         raise Exception, "Unexpected hemi: %s" % hemi
@@ -63,13 +84,31 @@ if __name__ == "__main__":
     check_file(STRUCT_VOL)
     sImg = nb.load(STRUCT_VOL)
     sImgDat = sImg.get_data()
+
+    # DEBUG
+    # sImgDat = sImgDat[0 : 4 : 256, 0 : 4: 256, 0 : 4: 256]
+
+    # === Downsample === #
+    D = 2
+    N = len(sImgDat) / D
+    sImgDat1 = np.zeros([N, N, N])
+
+    for i0 in range(0, N):
+        for i1 in range(0, N):
+            for i2 in range(0, N):
+                sImgDat1[i0, i1, i2] = sImgDat[i0 * D, i1 * D, i2 * D]
+            
+    sImgDat = sImgDat1;
     
-    sInds = np.mgrid[0 : sImg.shape[0], 0 : sImg.shape[1], 0 : sImg.shape[2]]
+    #sInds = np.mgrid[0 : sImg.shape[0], 0 : sImg.shape[1], 0 : sImg.shape[2]]
+    sInds = np.mgrid[0 : len(sImgDat), 
+                     0 : len(sImgDat[0]), 
+                     0 : len(sImgDat[0][0])]
 
     imgMin = np.min(sImgDat)
     imgMax = np.max(sImgDat)
-    print(imgMin)
-    print(imgMax)
+    print("Image min = %f" % imgMin)
+    print("Image min = %f" % imgMax)
 
     # mlab.figure(size=(600, 450))
 
@@ -109,20 +148,33 @@ if __name__ == "__main__":
     compNums = [] # Component number
     sigVals = []
     for (i0, tline) in enumerate(compt):
+        assert(tline.count(" - ") == 1)
+        assert(tline.count(": sig=") == 1)
+
+        linkName = tline.split(": sig=")[0]
+
+        roi1Name = linkName.split(" - ")[0]
+        roi2Name = linkName.split(" - ")[1]
+
+        if hemi == "xh" or hemi == "bh":
+            hemi1 = roi1Name.split("_")[0]
+            hemi2 = roi2Name.split("_")[0]
+            if args.bCrossOnly and (hemi1 == hemi2):
+                print("Skipping same-hemisphere projection: %s --> %s" % 
+                      (roi1Name, roi2Name))
+                continue
+
         if tline.count(", ") == 1:
             compNums.append(int(tline.split(", ")[1]))
             tline = tline.split(", ")[0]
         else:
             compNums.append(1)
 
-        assert(tline.count(" - ") == 1)
-        assert(tline.count(": sig=") == 1)
-        
-        linkName = tline.split(": sig=")[0]
         sigVal = np.abs(float(tline.split(": sig=")[1]))
-
-        roi1Name = linkName.split(" - ")[0]
-        roi2Name = linkName.split(" - ")[1]
+                
+        if args.bTranslateROIName:
+            roi1Name = translate_roi_name(roi1Name)
+            roi2Name = translate_roi_name(roi2Name)
         
         roi1Num = roi_names.index(roi1Name)
         roi2Num = roi_names.index(roi2Name)
@@ -137,12 +189,6 @@ if __name__ == "__main__":
     # edges = edges[:4] # DEBUG 
 
     labPlotted = [0] * len(roi_names)
-
-#    sImgDat = sImgDat[::-1, :, :]
-
-    
-    
-        
     
     # mlab.plot3d([0, 100], [0, 100], [0, 100], tube_radius=2.5)   
     # === Plot the "axes" === #
@@ -173,18 +219,18 @@ if __name__ == "__main__":
     #  Blue: right
 
     # mlab.show()
-    # sys.exit(0)
-
+    
+    #"""
     for (i0, tlink) in enumerate(edges):
         t_x = np.array([roi_coords[tlink[0]][0], \
-                        roi_coords[tlink[1]][0]]) - 128
+                        roi_coords[tlink[1]][0]]) / D - N / 2
         t_x = -t_x
         t_y = np.array([roi_coords[tlink[0]][1], \
-                        roi_coords[tlink[1]][1]]) - 128
+                        roi_coords[tlink[1]][1]]) / D- N / 2
         t_z = np.array([roi_coords[tlink[0]][2], \
-                        roi_coords[tlink[1]][2]]) - 128
+                        roi_coords[tlink[1]][2]]) / D - N / 2
 
-        mlab.plot3d(t_x, t_y, t_z, tube_radius=sigVals[i0] * 0.3, \
+        mlab.plot3d(t_x, t_y, t_z, tube_radius=sigVals[i0] * 0.3 / D, \
                     color=COMPONENT_CLRS[compNums[i0] - 1], \
                     opacity=t_opacity)
         # mlab.plot3d(t_x, t_y, t_z, tube_radius=1)
@@ -192,14 +238,24 @@ if __name__ == "__main__":
         for j in range(2):
             if labPlotted[tlink[j]] == 0:
                 mlab.points3d(t_x[j], t_y[j], t_z[j], \
-                              scale_factor=2.0, \
+                              scale_factor = 2.0 / D, \
                               color=COMPONENT_CLRS[compNums[i0] - 1], \
                               opacity=t_opacity)
+
+                if hemi == "lh" or hemi == "rh":
+                    rName = roi_names[tlink[j]].replace("lh_", "")\
+                                               .replace("rh_", "")
+                else:
+                    rName = roi_names[tlink[j]].replace("lh_", "L ")\
+                                               .replace("rh_", "R ")
+                
+
                 if not bNoText:
                     mlab.text3d(t_x[j], t_y[j], t_z[j], \
-                                roi_names[tlink[j]].replace("lh_", "").replace("rh_", ""), \
-                                color=(0, 0, 0), scale=2.0)
+                                rName, \
+                                color=(0, 0, 0), scale=2.0 / D)
                 labPlotted[tlink[j]] = 1
+    #"""
 
 #        points3d(t_x, t_y, t_z)
 
@@ -208,42 +264,46 @@ if __name__ == "__main__":
 #    mlab.move([600, 600, 400])
 
     #"""
-    src = mlab.pipeline.scalar_field((sInds[0] - 128), \
-                                     (sInds[1] - 128), \
-                                     (sInds[2] - 128), \
+    src = mlab.pipeline.scalar_field((sInds[0] - N / 2), \
+                                     (sInds[1] - N / 2), \
+                                     (sInds[2] - N / 2), \
                                      sImgDat)
-    mlab.pipeline.volume(src, vmin=10, vmax=1600, 
+#    mlab.pipeline.volume(src, vmin=10, vmax=1600, 
+#                         color=(1.0, 1.0, 1.0))
+    mlab.pipeline.volume(src, vmin=10, vmax=args.vmax, 
                          color=(1.0, 1.0, 1.0))
     #"""
               
+    
     if hemi == "lh":
         mlab.view(azimuth=210, elevation=100, roll=180, \
-                  focalpoint=[0, 0, 0], distance=220)
-    else:
+                  focalpoint=[0, 0, 0], distance=220 / D)
+    elif hemi == "rh":
         mlab.view(azimuth=145, elevation=-80, roll=180, \
-                  focalpoint=[0, 0, 0], distance=220)
+                  focalpoint=[0, 0, 0], distance=220 / D)
+    elif hemi == "xh" or hemi == "bh":
+        mlab.view(azimuth=90, elevation=10, roll=0, \
+                  focalpoint=[0, 0, 0], distance=220 / D)
     
-
-
-
-    cam,foc = mlab.move()
-    print(cam)
-    print(foc)
+    #cam,foc = mlab.move()
+    #print(cam)
+    #print(foc)
     
-    view=mlab.view()
-    print(view)
+#    view=mlab.view()
+#    print(view)
     
+    print("Rendering done.")
+
     # outputImgFN = "netw_component.png"
     os.system("rm -f %s" % outputImgFN)
+
+    #"""
     print("Saving image file ...")
     mlab.savefig(outputImgFN)
     check_file(outputImgFN)
     print("Image file saved at: %s" % outputImgFN)
+    #"""
+
     mlab.show()
 
-    
- 
-  
-
-    sys.exit(0)
     

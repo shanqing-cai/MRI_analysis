@@ -21,7 +21,7 @@ DATA_DIR ='/users/cais/STUT/DATA'
 ROI_TRACK_BASE = '/users/cais/STUT/ROI_TRACTS/'
 CTAB_FN = '/users/cais/STUT/slFRS17.ctab'
 
-VALID_MEAS = ["FA", "L1", "RD"];
+VALID_MEAS = ["FA", "MD", "L1", "RD"];
 
 MULT_FACTOR = 1000.0
 
@@ -32,7 +32,7 @@ if __name__ == "__main__":
     ap.add_argument("--dtiprep", dest="bDTIPrep", action="store_true", \
                     help="Use the DTIPrep preprocessed data")
     ap.add_argument("--meas", dest="meas", default="FA", \
-                    help="Specify diffusion-tensor measure type {FA, L1, RD}. RD is defined as the arithmetic mean of L2 and L3")
+                    help="Specify diffusion-tensor measure type {FA, MD, L1, RD}. RD is defined as the arithmetic mean of L2 and L3")
     ap.add_argument("--rerunbbr", dest="bRerunBBR", action="store_true", \
                     help="Do not use the exisiting bbr mat; but rerun BBR to generate a new mat")
     ap.add_argument("--rerun", dest="bRerun", action="store_true", \
@@ -121,7 +121,7 @@ if __name__ == "__main__":
         saydo(flirt_cmd)
 
     # Multiply by a factor for L1 and RD (for precision issues)
-    if meas == "L1" or meas == "RD":
+    if meas == "L1" or meas == "RD" or meas == "MD":
         bMult = True
         mult_cmd = "fslmaths %s -mul %f %s" \
                    % (dtmeas_anat_fn, MULT_FACTOR, dtmeas_anat_fn)

@@ -344,7 +344,9 @@ if bFold
             for i2 = 1 : size(a_cmat.(grp), 3)
                 % a_cmat_0(1 : nr, nr + 1 : 2 * nr, i2) should be identical to
                 % a_cmat_0(nr + 1 : 2 * nr, 1 : nr, i2)'
-                a_cmat.(grp)(:, :, i2) = a_cmat_0(1 : nr, nr + 1 : 2 * nr, i2);
+                a_cmat.(grp)(:, :, i2) = ...
+                    (a_cmat_0(1 : nr, nr + 1 : 2 * nr, i2) + ...
+                     a_cmat_0(nr + 1 : 2 * nr, 1 : nr, i2).') / 2;
 
                 t_mat = triu(a_cmat.(grp)(:, :, i2));
                 t_vec = [];
@@ -773,8 +775,11 @@ fprintf(1, 'INFO: Saved node CC figure to file:\n\t%s\n', figFN_CC);
 %% BCT: write the node-level graph theory measures to text file
 nodeGraphTheoryMeasFN = sprintf('nodeGraphTheory_meas.%s.%s.%s.txt', ...
                                          hemi, netwName, meas);
+if bCW
+    nodeGraphTheoryMeasFN = strrep(nodeGraphTheoryMeasFN, '.txt', '_cw.txt');
+end
 writeNodeGraphTheoryMeasTxt(nodeGraphTheoryMeasFN, sprois, ...
-                            a_strengths, p_strengths, ...
+                            a_strengths, p_str, ...
                             a_bc, p_bc, ...
                             a_cc, p_cc);
 
@@ -823,6 +828,8 @@ p_wge = ranksum(efw.PWS, efw.PFS);
 r_lc_wge_SSI4 = sign(k_lc_wge_SSI4(2)) * sqrt(r2_lc_wge_SSI4);
 
 fprintf(1, '=== Weighted global efficiency (weiMax = %f) ===\n', weiMax);
+fprintf(1, 'PFS (mean+/-SEM) = %.3f+/-%.3f\n', mean(efw.PFS), ste(efw.PFS));
+fprintf(1, 'PWS (mean+/-SEM) = %.3f+/-%.3f\n', mean(efw.PWS), ste(efw.PWS));
 fprintf(1, 'Between-group: p = %e\n\n', p_wge);
 fprintf(1, 'Spearman correl. with SSI4 (PWS): rho = %f, p = %e\n', ...
         rho_spr_wge_SSI4, p_spr_wge_SSI4);
@@ -832,7 +839,12 @@ fprintf(1, 'Linear correl. with SSI4 (PWS): r = %f, p = %e\n\n', ...
 %% Compute and visualize the average cmats and significance of differences
 figSize = 600;
 verticalPadding = 3.25;
-horizontalPadding = 2.5;
+
+if isequal(hemi, 'xh') || isequal(hemi, 'bh')
+    horizontalPadding = 3.0;
+else
+    horizontalPadding = 2.5;
+end
 
 mn_cmat = struct;
 
@@ -891,16 +903,23 @@ end
 
 ht_cols = nan(1, numel(col_roi_names));
 ht_cols_top = nan(1, numel(col_roi_names));
-horizontalAdjust = -0.10;
+
+% if isequal(hemi, 'bh') || isequal(hemi, 'xh')
+%     horizontalAdjust = -0.50;
+% else
+    horizontalAdjust = -0.10;
+% end
+
 verticalAdjust = 0.75;
+
 for k1 = 1 : numel(col_roi_names)
     ht_cols(k1) = text(k1, ...
                        numel(col_roi_names) + verticalAdjust, ...
-                       strrep(col_roi_names{k1}, [hemi, '_'], ''), ...
+                       strrep(strrep(col_roi_names{k1}, 'lh_', 'L '), 'rh_', 'R '), ...
                        'FontSize', 12);
     ht_cols_top(k1) = text(k1 + horizontalAdjust, ...
                            0, ...
-                           strrep(col_roi_names{k1}, [hemi, '_'], ''), ...
+                           strrep(strrep(col_roi_names{k1}, 'lh_', 'L '), 'rh_', 'R '), ...
                            'FontSize', 12);
     set(ht_cols(k1), 'rotation', -90);
     set(ht_cols_top(k1), 'rotation', 90);
@@ -916,7 +935,7 @@ end
 ht_rows = nan(1, numel(row_roi_names));
 for k1 = 1 : numel(row_roi_names)
     ht_rows(k1) = text(-horizontalPadding, k1, ...
-                       strrep(row_roi_names{k1}, [hemi, '_'], ''), ...
+                       strrep(strrep(row_roi_names{k1}, 'lh_', 'L '), 'rh_','R '), ...
                        'FontSize', 12);
 end
 
@@ -981,16 +1000,20 @@ if ~isequal(hemi, 'xh') && ~isequal(hemi, 'bh') && bFold
 end
 
 %% --- NBS (optional) --- %%
-if ~isempty(fsic(varargin, '--NBS'))
+if ~isempty(fsic(varargin, '--NBS-BGC')) || ~isempty(fsic(varargin, '--NBS-corrSSI4'))
+    if ~isempty(fsic(varargin, '--NBS-BGC'))
+        argIdx = fsic(varargin, '--NBS-BGC');
+    else
+        argIdx = fsic(varargin, '--NBS-corrSSI4');
+    end
+    
     % -- Linear correlation with SSI4 -- %
-    nbs_edgeThr = varargin{fsic(varargin, '--NBS') + 1};
-    nbs_nIters = varargin{fsic(varargin, '--NBS') + 2};
-    nbs_tail = varargin{fsic(varargin, '--NBS') + 3};
+    nbs_edgeThr = varargin{argIdx + 1};
+    nbs_nIters = varargin{argIdx + 2};
+    nbs_tail = varargin{argIdx + 3};
     nbs_bSum = ~isempty(fsic(varargin, '--NBS-sum'));
     
     % -- Between group comparison -- %
-%     [nbs_pval, adj] = nbs_bct_sc(a_cmat.PWS, a_cmat.PFS, 'ranksum', -log10(nbs_edgeThr), ...
-%                                  nbs_nIters, nbs_tail, '--sum');
     if isequal(hemi, 'xh')
         xh_opt = '--xh';
     else
@@ -1003,16 +1026,25 @@ if ~isempty(fsic(varargin, '--NBS'))
         sum_opt = '--non-sum';
     end
     
-    [nbs_pval, adj] = nbs_bct_sc(a_cmat.PWS, SSI4, 'spear', ...
-                                 -log10(nbs_edgeThr), ...
-                                 nbs_nIters, nbs_tail, sum_opt, ...
-                                 xh_opt);
+    if ~isempty(fsic(varargin, '--NBS-BGC'))
+        [nbs_pval, adj] = nbs_bct_sc(a_cmat.PWS, a_cmat.PFS, 'ranksum', ...
+                                     -log10(nbs_edgeThr), ...
+                                     nbs_nIters, nbs_tail, sum_opt, xh_opt);
+    else
+        [nbs_pval, adj] = nbs_bct_sc(a_cmat.PWS, SSI4, 'spear', ...
+                                     -log10(nbs_edgeThr), ...
+                                     nbs_nIters, nbs_tail, sum_opt, xh_opt);
+    end
                              
     % -- Write significant components to file -- % 
     sigCompCnt = 1;
     for i1 = 1 : numel(nbs_pval)
         if nbs_pval(i1) < NBS_COMPONENT_P_THRESH
             txtfn = sprintf('corrSSI4_%s_sigComponent_%d.txt', hemi, sigCompCnt);
+            if bCW
+                txtfn = strrep(txtfn, '.txt', '_cw.txt');
+            end
+            
             [t_nEdges, t_nNodes] = ...
                 write_netw_component_txt(adj, i1, sprois, p_SSI4_spr, txtfn, xh_opt);
             

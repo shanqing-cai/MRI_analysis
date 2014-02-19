@@ -137,10 +137,10 @@ verticalAdjust = 0.75;
 for k1 = 1 : numel(col_rois)
     ht_cols(k1) = text(k1, ...
                        numel(col_rois) + verticalAdjust, ...
-                       strrep(col_rois{k1}, [hemi, '_'], ''), ...
+                       strrep(strrep(col_rois{k1}, 'lh_', 'L '), 'rh_', 'R '), ...
                        'FontSize', 12);
     ht_cols_top(k1) = text(k1 + horizontalAdjust, 0, ...
-                       strrep(col_rois{k1}, [hemi, '_'], ''), ...
+                       strrep(strrep(col_rois{k1}, 'lh_', 'L'), 'rh_', 'R '), ...
                        'FontSize', 12);
     set(ht_cols(k1), 'rotation', -90);
     set(ht_cols_top(k1), 'rotation', 90);
@@ -150,25 +150,27 @@ end
 ht_rows = nan(1, numel(row_rois));
 for k1 = 1 : numel(row_rois)
     ht_rows(k1) = text(-horizontalPadding, k1, ...
-                       strrep(row_rois{k1}, [hemi, '_'], ''), ...
+                       strrep(strrep(row_rois{k1}, 'lh_', 'L '), 'rh_', 'R '), ...
                        'FontSize', 12);
 end
 
 %% --- Draw legend --- %%
-lgdX = 19;
-lgdY0 = 3;
-draw_diamond(lgdX, lgdY0, 'k');
-text(lgdX + 1.5, lgdY0, 'p < 0.05');
+if ~bXH
+    lgdX = 19;
+    lgdY0 = 3;
+    draw_diamond(lgdX, lgdY0, 'k');
+    text(lgdX + 1.5, lgdY0, 'p < 0.05');
 
-draw_x(lgdX, lgdY0 + 2, 'k');
-text(lgdX + 1.5, lgdY0 + 2, 'p < 0.01');
+    draw_x(lgdX, lgdY0 + 2, 'k');
+    text(lgdX + 1.5, lgdY0 + 2, 'p < 0.01');
 
-% draw_asterisk(lgdX, lgdY0 + 4, 'k');
-draw_square(lgdX, lgdY0 + 4, 'k');
-text(lgdX + 1.5, lgdY0 + 4, 'p < 0.005');
+    % draw_asterisk(lgdX, lgdY0 + 4, 'k');
+    draw_square(lgdX, lgdY0 + 4, 'k');
+    text(lgdX + 1.5, lgdY0 + 4, 'p < 0.005');
 
-rectangle('Position', [lgdX - 1, lgdY0 - 1, 8, 6], ...          
-          'EdgeColor', 'k', 'FaceColor', 'none');
+    rectangle('Position', [lgdX - 1, lgdY0 - 1, 8, 6], ...          
+              'EdgeColor', 'k', 'FaceColor', 'none');
+end
       
 
 %% --- Color bar labels --- %%
